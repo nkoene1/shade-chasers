@@ -1,0 +1,55 @@
+---
+description: Game vision, design pillars, and development methodology for Shade Chasers
+alwaysApply: true
+---
+
+# Shade Chasers — Foundation
+
+## Game Concept
+
+A multiplayer 3D race-to-shelter game. Players sprint through a post-apocalyptic landscape where the sun is lethal radiation. Shadows cast by obstacles are the only safe zones. The sun moves over time, so shadows shift — players must read the environment and adapt their path in real time.
+
+## Core Loop
+
+1. Players join a web lobby, get a random (changeable) username
+2. Up to 20 players per lobby; game starts after 60 s countdown or when full
+3. All players start simultaneously and race on foot toward a finish-line shelter
+4. Exposure to sunlight drains a tolerance meter; depletion = death
+5. Collectible items (e.g. protective clothing) scattered on the map extend tolerance
+6. Shadows move with the sun — safe routes change over time
+
+## Visual Identity
+
+- Stylized cartoon 3D, medium-low poly, flat shading with sharp edges
+- Desaturated / overexposed look in sunlit areas (color burned away)
+- Deep blacks, indigos, violets, blues with high saturation in shadowed areas
+- Simple chunky obstacles, minimal texture detail
+- High contrast between sun and shadow zones is the defining visual trait
+
+## Controls
+
+- WASD movement, mouse camera (third-person, Fall Guys-style feel)
+
+## Tech Stack
+
+React, Three.js, React Three Fiber, @react-three/drei, @react-three/rapier, TypeScript, Vite. Additional libraries will be introduced as needed — do not add dependencies preemptively.
+
+---
+
+## Development Methodology
+
+### Incremental Approach
+
+Do NOT implement multiple features at once. Each piece of functionality must be working and verifiable before building the next thing on top of it. When a feature is complete, confirm it works before moving on.
+
+### Planning Requirement
+
+Before implementing any sufficiently large feature, create an implementation plan as a markdown file and present it for review before execution. A "sufficiently large feature" = anything that touches 3+ files or introduces a new system.
+
+### Clarification Obligation
+
+Ask about any vague, ambiguous, or conflicting detail before writing code. Do not assume intent — confirm it.
+
+### No Premature Abstraction
+
+Do not create elaborate folder structures, abstractions, or systems ahead of the concrete need. Let architecture emerge from actual requirements. Build the simplest thing that works, then refactor when complexity demands it.
