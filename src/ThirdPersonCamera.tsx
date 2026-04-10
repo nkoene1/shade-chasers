@@ -1,6 +1,6 @@
-import { useRef, useEffect } from "react";
-import { useThree, useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import { useControls } from "leva";
+import { useEffect, useRef } from "react";
 import * as THREE from "three";
 
 interface ThirdPersonCameraProps {
@@ -10,8 +10,8 @@ interface ThirdPersonCameraProps {
 
 export function ThirdPersonCamera({ target, yawRef }: ThirdPersonCameraProps) {
   const { distance, minPitch, maxPitch, sensitivity } = useControls("Camera", {
-    distance: { value: 8, min: 2, max: 30, step: 0.5 },
-    minPitch: { value: 0.05, min: 0, max: 0.5, step: 0.01 },
+    distance: { value: 2, min: 2, max: 30, step: 0.5 },
+    minPitch: { value: 0.01, min: 0, max: 0.5, step: 0.01 },
     maxPitch: { value: Math.PI / 2.5, min: 0.5, max: Math.PI / 2, step: 0.05 },
     sensitivity: { value: 0.002, min: 0.0005, max: 0.01, step: 0.0005 },
   }, { collapsed: true });

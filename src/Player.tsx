@@ -1,8 +1,8 @@
-import { useRef, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
-import { RigidBody, CapsuleCollider } from "@react-three/rapier";
 import type { RapierRigidBody } from "@react-three/rapier";
+import { CapsuleCollider, RigidBody } from "@react-three/rapier";
 import { useControls } from "leva";
+import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { CharacterModel } from "./CharacterModel";
 import { useShadowDetection } from "./useShadowDetection";
@@ -11,20 +11,22 @@ interface PlayerProps {
   rigidBodyRef: React.RefObject<RapierRigidBody | null>;
   meshRef: React.RefObject<THREE.Group | null>;
   yawRef: React.RefObject<number>;
-  sunPosition: [number, number, number];
+  sunPositionRef: React.RefObject<THREE.Vector3>;
 }
 
-export function Player({ rigidBodyRef, meshRef, yawRef, sunPosition }: PlayerProps) {
+export function Player({ rigidBodyRef, meshRef, yawRef, sunPositionRef }: PlayerProps) {
   const { speed, jumpVelocity, airControl } = useControls("Player", {
     speed: { value: 6, min: 1, max: 20, step: 0.5 },
-    jumpVelocity: { value: 5, min: 1, max: 15, step: 0.5 },
+    jumpVelocity: { value: 8, min: 1, max: 15, step: 0.5 },
     airControl: { value: 0.3, min: 0, max: 1, step: 0.05 },
   }, { collapsed: true });
 
   const keys = useRef({ w: false, a: false, s: false, d: false });
   const jumpPressed = useRef(false);
   const groundContacts = useRef(0);
-  const inShadow = useShadowDetection(rigidBodyRef, sunPosition);
+  const groundedRef = useRef(false);
+  const risingFromJump = useRef(false);
+  const inShadow = useShadowDetection(rigidBodyRef, sunPositionRef);
 
   useEffect(() => {
     const handleDown = (e: KeyboardEvent) => {
@@ -62,16 +64,21 @@ export function Player({ rigidBodyRef, meshRef, yawRef, sunPosition }: PlayerPro
     if (dir.lengthSq() > 0) dir.normalize().multiplyScalar(speed);
 
     const vel = rb.linvel();
-    let yVel = vel.y;
-
     const isGrounded = groundContacts.current > 0;
+    groundedRef.current = isGrounded;
+
+    if (!isGrounded) risingFromJump.current = false;
+
+    let yVel = vel.y;
 
     if (jumpPressed.current && isGrounded) {
       yVel = jumpVelocity;
+      risingFromJump.current = true;
     }
     jumpPressed.current = false;
 
     if (isGrounded) {
+      if (!risingFromJump.current) yVel = Math.min(yVel, 0);
       rb.setLinvel({ x: dir.x, y: yVel, z: dir.z }, true);
     } else {
       let hx = vel.x;
@@ -92,7 +99,7 @@ export function Player({ rigidBodyRef, meshRef, yawRef, sunPosition }: PlayerPro
     <RigidBody
       ref={rigidBodyRef}
       colliders={false}
-      position={[0, 2, 0]}
+      position={[0, 15, 0]}
       lockRotations
     >
       <CapsuleCollider args={[0.35, 0.3]} />
@@ -104,7 +111,7 @@ export function Player({ rigidBodyRef, meshRef, yawRef, sunPosition }: PlayerPro
         onIntersectionExit={onGroundExit}
       />
       <group ref={meshRef}>
-        <CharacterModel rigidBodyRef={rigidBodyRef} inShadowRef={inShadow} />
+        <CharacterModel rigidBodyRef={rigidBodyRef} inShadowRef={inShadow} groundedRef={groundedRef} />
       </group>
     </RigidBody>
   );

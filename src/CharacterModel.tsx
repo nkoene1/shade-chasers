@@ -7,17 +7,17 @@ import * as THREE from "three";
 interface CharacterModelProps {
   rigidBodyRef: React.RefObject<RapierRigidBody | null>;
   inShadowRef: React.RefObject<boolean>;
+  groundedRef: React.RefObject<boolean>;
 }
 
-export function CharacterModel({ rigidBodyRef, inShadowRef }: CharacterModelProps) {
-  const { maxSwing, strideFreq, bobAmount, faceLerp, speedThreshold, airborneThreshold, poseLerp, animFps } =
+export function CharacterModel({ rigidBodyRef, inShadowRef, groundedRef }: CharacterModelProps) {
+  const { maxSwing, strideFreq, bobAmount, faceLerp, speedThreshold, poseLerp, animFps } =
     useControls("Character Animation", {
       maxSwing: { value: Math.PI / 4, min: 0, max: Math.PI / 2, step: 0.05 },
       strideFreq: { value: 5, min: 0.5, max: 10, step: 0.25 },
       bobAmount: { value: 0.04, min: 0, max: 0.2, step: 0.005 },
       faceLerp: { value: 10, min: 1, max: 30, step: 1 },
       speedThreshold: { value: 0.3, min: 0, max: 2, step: 0.1 },
-      airborneThreshold: { value: 0.8, min: 0, max: 3, step: 0.1 },
       poseLerp: { value: 12, min: 1, max: 30, step: 1 },
       animFps: { value: 24, min: 8, max: 60, step: 1 },
     }, { collapsed: true });
@@ -70,7 +70,7 @@ export function CharacterModel({ rigidBodyRef, inShadowRef }: CharacterModelProp
     mobilityBlend.current += (mobilityTarget - mobilityBlend.current) * (1 - Math.exp(-10 * delta));
 
     const horizontalSpeed = velSpeed * mobilityBlend.current;
-    const airborne = Math.abs(vel.y) > airborneThreshold;
+    const airborne = !groundedRef.current;
 
     const targetBlend = airborne ? 1 : 0;
     airborneBlend.current += (targetBlend - airborneBlend.current) * (1 - Math.exp(-poseLerp * delta));
