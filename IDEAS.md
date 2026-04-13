@@ -1,2 +1,3 @@
-- A plane with a banner blocking the sun for a few seconds
-- 
+- [] Current place top left
+- [x] Map bottom right
+- [] A plane with a banner blocking the sun for a few seconds

@@ -1,55 +1,84 @@
-import { useRef, useMemo } from "react";
+import { useAnimations, useGLTF } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import type { RapierRigidBody } from "@react-three/rapier";
 import { useControls } from "leva";
+import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
+
+const MODEL_PATH = "/models/Adventurer.gltf";
+
+type AnimationName = "Idle" | "Run" | "Roll";
 
 interface CharacterModelProps {
   rigidBodyRef: React.RefObject<RapierRigidBody | null>;
   inShadowRef: React.RefObject<boolean>;
   groundedRef: React.RefObject<boolean>;
+  rollingRef: React.RefObject<boolean>;
 }
 
-export function CharacterModel({ rigidBodyRef, inShadowRef, groundedRef }: CharacterModelProps) {
-  const { maxSwing, strideFreq, bobAmount, faceLerp, speedThreshold, poseLerp, animFps } =
-    useControls("Character Animation", {
-      maxSwing: { value: Math.PI / 4, min: 0, max: Math.PI / 2, step: 0.05 },
-      strideFreq: { value: 5, min: 0.5, max: 10, step: 0.25 },
-      bobAmount: { value: 0.04, min: 0, max: 0.2, step: 0.005 },
+const MODEL_SCALE = 0.7;
+const MODEL_Y_OFFSET = -0.65;
+
+export function CharacterModel({
+  rigidBodyRef,
+  inShadowRef,
+  groundedRef,
+  rollingRef,
+}: CharacterModelProps) {
+  const { faceLerp, speedThreshold, crossfadeDuration } = useControls(
+    "Character Animation",
+    {
       faceLerp: { value: 10, min: 1, max: 30, step: 1 },
       speedThreshold: { value: 0.3, min: 0, max: 2, step: 0.1 },
-      poseLerp: { value: 12, min: 1, max: 30, step: 1 },
-      animFps: { value: 24, min: 8, max: 60, step: 1 },
-    }, { collapsed: true });
+      crossfadeDuration: { value: 0.2, min: 0.05, max: 1, step: 0.05 },
+    },
+    { collapsed: true },
+  );
 
-  const { skin, shirt, pants, sunBurnColor, burnLerp, burnIntensity } =
-    useControls("Character Colors", {
-      skin: "#f0c090",
-      shirt: "#4a90d9",
-      pants: "#2d3748",
+  const { skinColor, sunBurnColor, burnLerp, burnIntensity } = useControls(
+    "Character Colors",
+    {
+      skinColor: "#f7efe5",
       sunBurnColor: "#cc3300",
       burnLerp: { value: 8, min: 1, max: 30, step: 1 },
       burnIntensity: { value: 0.6, min: 0, max: 2, step: 0.05 },
-    }, { collapsed: true });
+    },
+    { collapsed: true },
+  );
 
   const sunBurn = useMemo(() => new THREE.Color(sunBurnColor), [sunBurnColor]);
   const noBurn = useMemo(() => new THREE.Color("#000000"), []);
 
   const groupRef = useRef<THREE.Group>(null);
-  const leftLegRef = useRef<THREE.Group>(null);
-  const rightLegRef = useRef<THREE.Group>(null);
-  const leftArmRef = useRef<THREE.Group>(null);
-  const rightArmRef = useRef<THREE.Group>(null);
-  const bodyRef = useRef<THREE.Group>(null);
-  const skinMatRef = useRef<THREE.MeshStandardMaterial>(null);
-
-  const stride = useRef(0);
-  const facingAngle = useRef(0);
-  const airborneBlend = useRef(0);
+  const facingAngle = useRef(Math.PI);
   const burnBlend = useRef(0);
   const prevPos = useRef<{ x: number; z: number } | null>(null);
   const mobilityBlend = useRef(1);
-  const animAccum = useRef(0);
+  const currentAction = useRef<AnimationName>("Idle");
+
+  const gltf = useGLTF(MODEL_PATH);
+  const nodes = gltf.nodes as Record<string, THREE.SkinnedMesh & THREE.Bone>;
+  const materials = gltf.materials as Record<string, THREE.MeshStandardMaterial>;
+  const { actions } = useAnimations(gltf.animations, groupRef);
+
+  useEffect(() => {
+    const idle = actions.Idle;
+    if (idle) {
+      idle.reset().play();
+      currentAction.current = "Idle";
+    }
+  }, [actions]);
+
+  const skinMaterials = useMemo(() => {
+    const mats: THREE.MeshStandardMaterial[] = [];
+    if (materials.Skin) mats.push(materials.Skin);
+    return mats;
+  }, [materials]);
+
+  useEffect(() => {
+    const col = new THREE.Color(skinColor);
+    for (const mat of skinMaterials) mat.color.copy(col);
+  }, [skinColor, skinMaterials]);
 
   useFrame((_, delta) => {
     const rb = rigidBodyRef.current;
@@ -67,21 +96,22 @@ export function CharacterModel({ rigidBodyRef, inShadowRef, groundedRef }: Chara
       mobilityTarget = Math.min(actualSpeed / velSpeed, 1);
     }
     prevPos.current = { x: pos.x, z: pos.z };
-    mobilityBlend.current += (mobilityTarget - mobilityBlend.current) * (1 - Math.exp(-10 * delta));
+    mobilityBlend.current +=
+      (mobilityTarget - mobilityBlend.current) * (1 - Math.exp(-10 * delta));
 
     const horizontalSpeed = velSpeed * mobilityBlend.current;
-    const airborne = !groundedRef.current;
+    const isGrounded = groundedRef.current;
 
-    const targetBlend = airborne ? 1 : 0;
-    airborneBlend.current += (targetBlend - airborneBlend.current) * (1 - Math.exp(-poseLerp * delta));
-
+    // Sun burn emissive on skin
     const targetBurn = inShadowRef.current ? 0 : 1;
-    burnBlend.current += (targetBurn - burnBlend.current) * (1 - Math.exp(-burnLerp * delta));
-    if (skinMatRef.current) {
-      skinMatRef.current.emissive.lerpColors(noBurn, sunBurn, burnBlend.current);
-      skinMatRef.current.emissiveIntensity = burnBlend.current * burnIntensity;
+    burnBlend.current +=
+      (targetBurn - burnBlend.current) * (1 - Math.exp(-burnLerp * delta));
+    for (const mat of skinMaterials) {
+      mat.emissive.lerpColors(noBurn, sunBurn, burnBlend.current);
+      mat.emissiveIntensity = burnBlend.current * burnIntensity;
     }
 
+    // Facing rotation
     if (horizontalSpeed > speedThreshold && groupRef.current) {
       const targetAngle = Math.atan2(vel.x, vel.z);
       facingAngle.current = lerpAngle(
@@ -92,81 +122,175 @@ export function CharacterModel({ rigidBodyRef, inShadowRef, groundedRef }: Chara
       groupRef.current.rotation.y = facingAngle.current;
     }
 
-    animAccum.current += delta;
-    const animStep = 1 / animFps;
-    if (animAccum.current >= animStep) {
-      animAccum.current -= animStep;
-      if (animAccum.current >= animStep) animAccum.current = 0;
+    // Animation state
+    const isRolling = rollingRef.current;
 
-      const ab = airborneBlend.current;
-      const t = Math.min(horizontalSpeed / 6, 1);
-      stride.current += horizontalSpeed * strideFreq * animStep;
-      const runSwing = Math.sin(stride.current) * maxSwing * t;
-
-      const jumpLeg = -0.4;
-      const jumpArm = -0.9;
-
-      if (leftLegRef.current) leftLegRef.current.rotation.x = runSwing * (1 - ab) + jumpLeg * ab;
-      if (rightLegRef.current) rightLegRef.current.rotation.x = -runSwing * (1 - ab) + jumpLeg * ab;
-      if (leftArmRef.current) leftArmRef.current.rotation.x = -runSwing * 0.8 * (1 - ab) + jumpArm * ab;
-      if (rightArmRef.current) rightArmRef.current.rotation.x = runSwing * 0.8 * (1 - ab) + jumpArm * ab;
-
-      if (bodyRef.current) {
-        bodyRef.current.position.y = Math.abs(Math.sin(stride.current * 2)) * bobAmount * t * (1 - ab);
+    if (isRolling && currentAction.current !== "Roll") {
+      const prev = actions[currentAction.current];
+      const roll = actions.Roll;
+      if (prev && roll) {
+        roll.setLoop(THREE.LoopOnce, 1);
+        roll.clampWhenFinished = true;
+        roll.reset().fadeIn(crossfadeDuration * 0.5).play();
+        prev.fadeOut(crossfadeDuration * 0.5);
+      }
+      currentAction.current = "Roll";
+    } else if (!isRolling && currentAction.current === "Roll") {
+      const desired: AnimationName =
+        horizontalSpeed > speedThreshold ? "Run" : "Idle";
+      const roll = actions.Roll;
+      const next = actions[desired];
+      if (roll && next) {
+        next.reset().fadeIn(crossfadeDuration).play();
+        roll.fadeOut(crossfadeDuration);
+      }
+      currentAction.current = desired;
+    } else if (!isRolling && isGrounded) {
+      const desired: AnimationName =
+        horizontalSpeed > speedThreshold ? "Run" : "Idle";
+      if (desired !== currentAction.current) {
+        const prev = actions[currentAction.current];
+        const next = actions[desired];
+        if (prev && next) {
+          next.reset().fadeIn(crossfadeDuration).play();
+          prev.fadeOut(crossfadeDuration);
+        }
+        currentAction.current = desired;
       }
     }
   });
 
   return (
-    <group ref={groupRef}>
-      <group ref={bodyRef}>
-        {/* Head */}
-        <mesh position={[0, 0.475, 0]} castShadow>
-          <boxGeometry args={[0.25, 0.25, 0.25]} />
-          <meshStandardMaterial ref={skinMatRef} color={skin} flatShading />
-        </mesh>
-
-        {/* Torso */}
-        <mesh position={[0, 0.075, 0]} castShadow>
-          <boxGeometry args={[0.35, 0.45, 0.2]} />
-          <meshStandardMaterial color={shirt} flatShading />
-        </mesh>
-
-        {/* Left arm pivot at shoulder */}
-        <group ref={leftArmRef} position={[-0.225, 0.25, 0]}>
-          <mesh position={[0, -0.2, 0]} castShadow>
-            <boxGeometry args={[0.1, 0.4, 0.1]} />
-            <meshStandardMaterial color={shirt} flatShading />
-          </mesh>
+    <group
+      ref={groupRef}
+      scale={MODEL_SCALE}
+      position={[0, MODEL_Y_OFFSET, 0]}
+      rotation={[0, Math.PI, 0]}
+      dispose={null}
+    >
+      <group name="CharacterArmature">
+        <primitive object={nodes.Root} />
+        <group name="Adventurer_Body">
+          <skinnedMesh
+            name="Cube063"
+            geometry={nodes.Cube063.geometry}
+            material={materials.Skin}
+            skeleton={nodes.Cube063.skeleton}
+            castShadow
+          />
+          <skinnedMesh
+            name="Cube063_1"
+            geometry={nodes.Cube063_1.geometry}
+            material={materials.Green}
+            skeleton={nodes.Cube063_1.skeleton}
+            castShadow
+          />
+          <skinnedMesh
+            name="Cube063_2"
+            geometry={nodes.Cube063_2.geometry}
+            material={materials.LightGreen}
+            skeleton={nodes.Cube063_2.skeleton}
+            castShadow
+          />
         </group>
-
-        {/* Right arm pivot at shoulder */}
-        <group ref={rightArmRef} position={[0.225, 0.25, 0]}>
-          <mesh position={[0, -0.2, 0]} castShadow>
-            <boxGeometry args={[0.1, 0.4, 0.1]} />
-            <meshStandardMaterial color={shirt} flatShading />
-          </mesh>
+        <group name="Adventurer_Feet">
+          <skinnedMesh
+            name="Cube052"
+            geometry={nodes.Cube052.geometry}
+            material={materials.Grey}
+            skeleton={nodes.Cube052.skeleton}
+            castShadow
+          />
+          <skinnedMesh
+            name="Cube052_1"
+            geometry={nodes.Cube052_1.geometry}
+            material={materials.Black}
+            skeleton={nodes.Cube052_1.skeleton}
+            castShadow
+          />
         </group>
-      </group>
-
-      {/* Left leg pivot at hip */}
-      <group ref={leftLegRef} position={[-0.1, -0.15, 0]}>
-        <mesh position={[0, -0.25, 0]} castShadow>
-          <boxGeometry args={[0.13, 0.5, 0.13]} />
-          <meshStandardMaterial color={pants} flatShading />
-        </mesh>
-      </group>
-
-      {/* Right leg pivot at hip */}
-      <group ref={rightLegRef} position={[0.1, -0.15, 0]}>
-        <mesh position={[0, -0.25, 0]} castShadow>
-          <boxGeometry args={[0.13, 0.5, 0.13]} />
-          <meshStandardMaterial color={pants} flatShading />
-        </mesh>
+        <group name="Adventurer_Head">
+          <skinnedMesh
+            name="Cube039"
+            geometry={nodes.Cube039.geometry}
+            material={materials.Skin}
+            skeleton={nodes.Cube039.skeleton}
+            castShadow
+          />
+          <skinnedMesh
+            name="Cube039_1"
+            geometry={nodes.Cube039_1.geometry}
+            material={materials.Eyebrows}
+            skeleton={nodes.Cube039_1.skeleton}
+            castShadow
+          />
+          <skinnedMesh
+            name="Cube039_2"
+            geometry={nodes.Cube039_2.geometry}
+            material={materials.Hair}
+            skeleton={nodes.Cube039_2.skeleton}
+            castShadow
+          />
+          <skinnedMesh
+            name="Cube039_3"
+            geometry={nodes.Cube039_3.geometry}
+            material={materials.Eye}
+            skeleton={nodes.Cube039_3.skeleton}
+            castShadow
+          />
+        </group>
+        <group name="Adventurer_Legs">
+          <skinnedMesh
+            name="Cube020"
+            geometry={nodes.Cube020.geometry}
+            material={materials.Brown}
+            skeleton={nodes.Cube020.skeleton}
+            castShadow
+          />
+          <skinnedMesh
+            name="Cube020_1"
+            geometry={nodes.Cube020_1.geometry}
+            material={materials.Brown2}
+            skeleton={nodes.Cube020_1.skeleton}
+            castShadow
+          />
+        </group>
+        <group name="Backpack">
+          <skinnedMesh
+            name="Plane"
+            geometry={nodes.Plane.geometry}
+            material={materials.Brown}
+            skeleton={nodes.Plane.skeleton}
+            castShadow
+          />
+          <skinnedMesh
+            name="Plane_1"
+            geometry={nodes.Plane_1.geometry}
+            material={materials.LightGreen}
+            skeleton={nodes.Plane_1.skeleton}
+            castShadow
+          />
+          <skinnedMesh
+            name="Plane_2"
+            geometry={nodes.Plane_2.geometry}
+            material={materials.Gold}
+            skeleton={nodes.Plane_2.skeleton}
+            castShadow
+          />
+          <skinnedMesh
+            name="Plane_3"
+            geometry={nodes.Plane_3.geometry}
+            material={materials.Green}
+            skeleton={nodes.Plane_3.skeleton}
+            castShadow
+          />
+        </group>
       </group>
     </group>
   );
 }
+
+useGLTF.preload(MODEL_PATH);
 
 function lerpAngle(a: number, b: number, t: number): number {
   let diff = ((b - a + Math.PI) % (Math.PI * 2)) - Math.PI;

@@ -5,6 +5,8 @@ import { useControls } from "leva";
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { CharacterModel } from "./CharacterModel";
+import { DEFAULT_DISTANCE } from "./ThirdPersonCamera";
+import { TERRAIN_SIZE } from "./useHeightMap";
 import { useShadowDetection } from "./useShadowDetection";
 
 interface PlayerProps {
@@ -15,24 +17,33 @@ interface PlayerProps {
 }
 
 export function Player({ rigidBodyRef, meshRef, yawRef, sunPositionRef }: PlayerProps) {
-  const { speed, jumpVelocity, airControl } = useControls("Player", {
+  const { speed, jumpVelocity, airControl, rollSpeed, rollDuration, rollCooldown } = useControls("Player", {
     speed: { value: 6, min: 1, max: 20, step: 0.5 },
     jumpVelocity: { value: 8, min: 1, max: 15, step: 0.5 },
     airControl: { value: 0.3, min: 0, max: 1, step: 0.05 },
+    rollSpeed: { value: 4, min: 4, max: 30, step: 0.5 },
+    rollDuration: { value: 1.35, min: 0.2, max: 2, step: 0.05 },
+    rollCooldown: { value: 0.4, min: 0, max: 2, step: 0.05 },
   }, { collapsed: true });
 
   const keys = useRef({ w: false, a: false, s: false, d: false });
   const jumpPressed = useRef(false);
+  const rollRequested = useRef(false);
   const groundContacts = useRef(0);
   const groundedRef = useRef(false);
   const risingFromJump = useRef(false);
-  const inShadow = useShadowDetection(rigidBodyRef, sunPositionRef);
+  const rollingRef = useRef(false);
+  const rollTimer = useRef(0);
+  const rollCooldownTimer = useRef(0);
+  const rollDir = useRef(new THREE.Vector3());
+  const inShadow = useShadowDetection(rigidBodyRef, sunPositionRef, rollingRef);
 
   useEffect(() => {
     const handleDown = (e: KeyboardEvent) => {
       const k = e.key.toLowerCase();
       if (k in keys.current) keys.current[k as keyof typeof keys.current] = true;
       if (e.key === " ") jumpPressed.current = true;
+      if (e.key === "Shift") rollRequested.current = true;
     };
     const handleUp = (e: KeyboardEvent) => {
       const k = e.key.toLowerCase();
@@ -69,6 +80,38 @@ export function Player({ rigidBodyRef, meshRef, yawRef, sunPositionRef }: Player
 
     if (!isGrounded) risingFromJump.current = false;
 
+    if (rollCooldownTimer.current > 0) rollCooldownTimer.current -= delta;
+
+    // Start roll
+    if (
+      rollRequested.current &&
+      isGrounded &&
+      !rollingRef.current &&
+      rollCooldownTimer.current <= 0 &&
+      dir.lengthSq() > 0
+    ) {
+      rollingRef.current = true;
+      rollTimer.current = rollDuration;
+      rollDir.current.copy(dir).normalize().multiplyScalar(rollSpeed);
+    }
+    rollRequested.current = false;
+
+    // Active roll
+    if (rollingRef.current) {
+      rollTimer.current -= delta;
+      if (rollTimer.current <= 0) {
+        rollingRef.current = false;
+        rollCooldownTimer.current = rollCooldown;
+      } else {
+        rb.setLinvel(
+          { x: rollDir.current.x, y: Math.min(vel.y, 0), z: rollDir.current.z },
+          true,
+        );
+        jumpPressed.current = false;
+        return;
+      }
+    }
+
     let yVel = vel.y;
 
     if (jumpPressed.current && isGrounded) {
@@ -99,7 +142,7 @@ export function Player({ rigidBodyRef, meshRef, yawRef, sunPositionRef }: Player
     <RigidBody
       ref={rigidBodyRef}
       colliders={false}
-      position={[0, 15, 0]}
+      position={[0, 10, TERRAIN_SIZE / 2 - DEFAULT_DISTANCE - 1]}
       lockRotations
     >
       <CapsuleCollider args={[0.35, 0.3]} />
@@ -111,7 +154,7 @@ export function Player({ rigidBodyRef, meshRef, yawRef, sunPositionRef }: Player
         onIntersectionExit={onGroundExit}
       />
       <group ref={meshRef}>
-        <CharacterModel rigidBodyRef={rigidBodyRef} inShadowRef={inShadow} groundedRef={groundedRef} />
+        <CharacterModel rigidBodyRef={rigidBodyRef} inShadowRef={inShadow} groundedRef={groundedRef} rollingRef={rollingRef} />
       </group>
     </RigidBody>
   );

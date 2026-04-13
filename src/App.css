@@ -1,0 +1,13 @@
+.minimap-frame {
+	position: fixed;
+	bottom: var(--minimap-margin, 16px);
+	right: var(--minimap-margin, 16px);
+	width: var(--minimap-size, 180px);
+	height: var(--minimap-size, 180px);
+	opacity: var(--minimap-opacity, 1);
+	border: 2px solid rgba(255, 255, 255, 0.4);
+	border-radius: 4px;
+	pointer-events: none;
+	z-index: 10;
+	box-shadow: 0 0 12px rgba(0, 0, 0, 0.5);
+}

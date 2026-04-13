@@ -7,23 +7,41 @@ import {
   sampleHeight,
 } from "./useHeightMap";
 
-interface GroundProps {
+const HALF_TERRAIN = TERRAIN_SIZE / 2;
+const OUTER_SIZE = TERRAIN_SIZE * 5;
+const INNER_OFFSET = 0.3;
+const SEGMENTS = 200;
+
+/**
+ * Mirror-repeat UV so tiles are always seamless, even if the height-map
+ * edges don't match. Even periods keep the original orientation,
+ * odd periods flip — like GL_MIRRORED_REPEAT.
+ */
+function mirrorRepeat(val: number): number {
+  const period = Math.floor(val);
+  const frac = val - period;
+  return (period & 1) === 0 ? frac : 1 - frac;
+}
+
+interface RepeatingGroundProps {
   heightMap: HeightMapData | null;
-  subdivisions: number;
   heightScale: number;
   colorSteps: [number, number];
 }
 
-export function Ground({ heightMap, subdivisions, heightScale, colorSteps }: GroundProps) {
+export function RepeatingGround({
+  heightMap,
+  heightScale,
+  colorSteps,
+}: RepeatingGroundProps) {
   const terrain = useMemo(() => {
     if (!heightMap) return null;
 
-    const segs = subdivisions;
     const geo = new THREE.PlaneGeometry(
-      TERRAIN_SIZE,
-      TERRAIN_SIZE,
-      segs,
-      segs,
+      OUTER_SIZE,
+      OUTER_SIZE,
+      SEGMENTS,
+      SEGMENTS,
     );
     geo.rotateX(-Math.PI / 2);
 
@@ -32,16 +50,24 @@ export function Ground({ heightMap, subdivisions, heightScale, colorSteps }: Gro
     for (let i = 0; i < pos.count; i++) {
       const x = pos.getX(i);
       const z = pos.getZ(i);
-      const u = x / TERRAIN_SIZE + 0.5;
-      const v = z / TERRAIN_SIZE + 0.5;
-      const h = sampleHeight(
-        heightMap.pixels,
-        heightMap.width,
-        heightMap.height,
-        u,
-        v,
-      );
-      pos.setY(i, h * heightScale);
+
+      const rawU = x / TERRAIN_SIZE + 0.5;
+      const rawV = z / TERRAIN_SIZE + 0.5;
+      const u = mirrorRepeat(rawU);
+      const v = mirrorRepeat(rawV);
+
+      const h =
+        sampleHeight(
+          heightMap.pixels,
+          heightMap.width,
+          heightMap.height,
+          u,
+          v,
+        ) * heightScale;
+
+      const inside =
+        Math.abs(x) <= HALF_TERRAIN && Math.abs(z) <= HALF_TERRAIN;
+      pos.setY(i, inside ? h - INNER_OFFSET : h);
     }
     pos.needsUpdate = true;
 
@@ -68,10 +94,10 @@ export function Ground({ heightMap, subdivisions, heightScale, colorSteps }: Gro
       const t = tRaw >= colorSteps[1] ? 1 : tRaw >= colorSteps[0] ? 0.5 : 0;
       faceColor.copy(valleyColor).lerp(peakColor, t);
 
-      for (let v = 0; v < 3; v++) {
-        colors[(base + v) * 3] = faceColor.r;
-        colors[(base + v) * 3 + 1] = faceColor.g;
-        colors[(base + v) * 3 + 2] = faceColor.b;
+      for (let vi = 0; vi < 3; vi++) {
+        colors[(base + vi) * 3] = faceColor.r;
+        colors[(base + vi) * 3 + 1] = faceColor.g;
+        colors[(base + vi) * 3 + 2] = faceColor.b;
       }
     }
 
@@ -79,18 +105,13 @@ export function Ground({ heightMap, subdivisions, heightScale, colorSteps }: Gro
     renderGeo.computeVertexNormals();
 
     geo.dispose();
-
     return { renderGeo, colliderVertices, colliderIndices };
-  }, [heightMap, subdivisions, heightScale, colorSteps]);
+  }, [heightMap, heightScale, colorSteps]);
 
   if (!terrain) return null;
 
   return (
-    <RigidBody
-      type="fixed"
-      colliders={false}
-      key={`terrain-${subdivisions}-${heightScale}`}
-    >
+    <RigidBody type="fixed" colliders={false}>
       <mesh receiveShadow geometry={terrain.renderGeo}>
         <meshStandardMaterial
           vertexColors

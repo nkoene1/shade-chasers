@@ -1,6 +1,8 @@
 import type { RefObject } from 'react';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
+
+export const SUN_LAYER = 1;
 
 interface SunProps {
 	position: [number, number, number];
@@ -58,25 +60,42 @@ export function Sun({ position, size, groupRef }: SunProps) {
 	const discScale = size * 2;
 	const glowScale = size * 8;
 
+	const localRef = useRef<THREE.Group>(null);
+
+	useEffect(() => {
+		const group = groupRef?.current ?? localRef.current;
+		if (!group) return;
+		group.traverse((obj) => obj.layers.set(SUN_LAYER));
+	}, [groupRef]);
+
 	return (
-		<group ref={groupRef} position={position}>
-			<sprite scale={[discScale, discScale, 1]} renderOrder={1}>
+		<group ref={groupRef ?? localRef} position={position}>
+			<sprite scale={[discScale, discScale, 1]} renderOrder={-999}>
 				<spriteMaterial
 					map={discTexture}
 					color={[4, 3.5, 2]}
 					toneMapped={false}
-					transparent
+					transparent={false}
 					depthWrite={false}
+					depthTest={false}
+					blending={THREE.CustomBlending}
+					blendSrc={THREE.SrcAlphaFactor}
+					blendDst={THREE.OneMinusSrcAlphaFactor}
+					blendEquation={THREE.AddEquation}
 				/>
 			</sprite>
-			<sprite scale={[glowScale, glowScale, 1]} renderOrder={0}>
+			<sprite scale={[glowScale, glowScale, 1]} renderOrder={-1000}>
 				<spriteMaterial
 					map={glowTexture}
 					color={[3, 2.5, 1.5]}
 					toneMapped={false}
-					transparent
+					transparent={false}
 					depthWrite={false}
-					blending={THREE.AdditiveBlending}
+					depthTest={false}
+					blending={THREE.CustomBlending}
+					blendSrc={THREE.SrcAlphaFactor}
+					blendDst={THREE.OneFactor}
+					blendEquation={THREE.AddEquation}
 				/>
 			</sprite>
 		</group>

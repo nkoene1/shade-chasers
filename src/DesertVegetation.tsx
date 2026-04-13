@@ -29,12 +29,12 @@ const HALF = TERRAIN_SIZE / 2;
 const EDGE_MARGIN = 3;
 
 function isNearObstacle(x: number, z: number): boolean {
-  const obs: [number, number][] = [
-    [4, 4], [-5, 6], [8, -3], [-3, -5],
-    [0, 10], [-8, 2], [6, 9], [-6, -8],
+  const obs: [number, number, number][] = [
+    [12, 8, 5], [-10, -12, 5], [20, -15, 5], [-18, 10, 5],
+    [6, -6, 4], [-8, 14, 4], [15, 3, 4], [-14, -5, 4], [0, -18, 4],
   ];
-  for (const [ox, oz] of obs) {
-    if ((x - ox) ** 2 + (z - oz) ** 2 < 9) return true;
+  for (const [ox, oz, r] of obs) {
+    if ((x - ox) ** 2 + (z - oz) ** 2 < r * r) return true;
   }
   return false;
 }
@@ -65,12 +65,8 @@ interface ModelConfig {
 }
 
 const MODEL_CONFIGS: ModelConfig[] = [
-  { key: "grassDry1", path: "/models/grass-dry-1.glb", defaultCount: 40, scaleRange: [0.8, 1.8], sinkFactor: 0.0, tiltRange: 0.15, color: "#C4A84B", colorVariation: 0.10, isGrass: true },
-  { key: "grassDry2", path: "/models/grass-dry-2.glb", defaultCount: 40, scaleRange: [0.5, 1.1], sinkFactor: 0.0, tiltRange: 0.15, color: "#A8923E", colorVariation: 0.10, isGrass: true },
-  { key: "stoneSand1", path: "/models/stone-sand-1.glb", defaultCount: 80, scaleRange: [0.12, 0.3], sinkFactor: 0.15, tiltRange: 0.3, color: "#B8A88A", colorVariation: 0.08, isGrass: false },
-  { key: "stoneSand2", path: "/models/stone-sand-2.glb", defaultCount: 80, scaleRange: [0.3, 0.7], sinkFactor: 0.15, tiltRange: 0.3, color: "#A69478", colorVariation: 0.08, isGrass: false },
-  { key: "stoneGray1", path: "/models/stone-gray-1.glb", defaultCount: 40, scaleRange: [0.1, 0.25], sinkFactor: 0.15, tiltRange: 0.3, color: "#7A7570", colorVariation: 0.06, isGrass: false },
-  { key: "stoneGray2", path: "/models/stone-gray-2.glb", defaultCount: 40, scaleRange: [0.3, 0.65], sinkFactor: 0.15, tiltRange: 0.3, color: "#8B8580", colorVariation: 0.06, isGrass: false },
+  { key: "grassDry", path: "/models/grass-dry.glb", defaultCount: 80, scaleRange: [0.4, 2.0], sinkFactor: 0.0, tiltRange: 0.15, color: "#B89E44", colorVariation: 0.15, isGrass: true },
+  { key: "stoneSand", path: "/models/stone-sand.glb", defaultCount: 200, scaleRange: [0.1, 0.25], sinkFactor: 0.15, tiltRange: 0.35, color: "#B8A88A", colorVariation: 0.12, isGrass: false },
 ];
 
 // ---------------------------------------------------------------------------
@@ -116,8 +112,10 @@ function generateInstances(
     q.setFromEuler(new THREE.Euler(tiltX, rotY, tiltZ));
 
     const s = variant.scaleRange[0] + rand() * (variant.scaleRange[1] - variant.scaleRange[0]);
-    const scaleVariation = 0.85 + rand() * 0.3;
-    scale.set(s * scaleVariation, s, s * scaleVariation);
+    const sx = s * (0.6 + rand() * 0.8);
+    const sy = s * (0.7 + rand() * 0.6);
+    const sz = s * (0.6 + rand() * 0.8);
+    scale.set(sx, sy, sz);
 
     pos.set(x, y - s * variant.sinkFactor, z);
 
