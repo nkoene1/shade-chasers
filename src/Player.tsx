@@ -29,11 +29,11 @@ const _dir = new THREE.Vector3();
 
 export function Player({ rigidBodyRef, meshRef, yawRef, sunPositionRef }: PlayerProps) {
   const { speed, jumpVelocity, airControl, rollSpeed, rollDuration, rollCooldown } = useControls("Player", {
-    speed: { value: 5, min: 1, max: 20, step: 0.5 },
+    speed: { value: 6, min: 1, max: 20, step: 0.5 },
     jumpVelocity: { value: 8, min: 1, max: 15, step: 0.5 },
     airControl: { value: 0.3, min: 0, max: 1, step: 0.05 },
     rollSpeed: { value: 4, min: 4, max: 30, step: 0.5 },
-    rollDuration: { value: 1.35, min: 0.2, max: 2, step: 0.05 },
+    rollDuration: { value: 0.85, min: 0.2, max: 2, step: 0.05 },
     rollCooldown: { value: 0.4, min: 0, max: 2, step: 0.05 },
   }, { collapsed: true });
 

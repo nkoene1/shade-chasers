@@ -36,12 +36,24 @@ export function CharacterModel({
   deadRef,
   maxSpeed,
 }: CharacterModelProps) {
-  const { faceLerp, speedThreshold, crossfadeDuration } = useControls(
+  const {
+    faceLerp,
+    speedThreshold,
+    crossfadeDuration,
+    idleAnimationSpeed,
+    runAnimationSpeed,
+    rollAnimationSpeed,
+    deathAnimationSpeed,
+  } = useControls(
     "Character Animation",
     {
       faceLerp: { value: 10, min: 1, max: 30, step: 1 },
       speedThreshold: { value: 0.3, min: 0, max: 2, step: 0.1 },
       crossfadeDuration: { value: 0.2, min: 0.05, max: 1, step: 0.05 },
+      idleAnimationSpeed: { value: 1, min: 0.1, max: 3, step: 0.05 },
+      runAnimationSpeed: { value: 1.5, min: 0.1, max: 3, step: 0.05 },
+      rollAnimationSpeed: { value: 1.5, min: 0.1, max: 3, step: 0.05 },
+      deathAnimationSpeed: { value: 1, min: 0.1, max: 3, step: 0.05 },
     },
     { collapsed: true },
   );
@@ -126,11 +138,19 @@ export function CharacterModel({
     }
     const isGrounded = groundedRef.current;
 
+    if (actions.Idle) actions.Idle.timeScale = idleAnimationSpeed;
+    if (actions.Roll) actions.Roll.timeScale = rollAnimationSpeed;
+    if (actions.Death) actions.Death.timeScale = deathAnimationSpeed;
+
     // Slow the run cycle to match effective ground speed (e.g. sliding along a wall)
     const runAction = actions.Run;
     if (runAction) {
       const ratio = maxSpeed > 0 ? horizontalSpeed / maxSpeed : 1;
-      runAction.timeScale = THREE.MathUtils.clamp(ratio, MIN_RUN_TIME_SCALE, 1);
+      runAction.timeScale = THREE.MathUtils.clamp(
+        ratio * runAnimationSpeed,
+        Math.min(MIN_RUN_TIME_SCALE, runAnimationSpeed),
+        runAnimationSpeed,
+      );
     }
 
     // Sun burn emissive on skin
