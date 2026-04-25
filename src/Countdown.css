@@ -1,0 +1,160 @@
+/* ═══════════════════════════════════════════
+   Countdown — 3 → 2 → 1 → START!
+   ═══════════════════════════════════════════ */
+
+.countdown {
+	position: fixed;
+	inset: 0;
+	z-index: 40;
+	pointer-events: none;
+	display: grid;
+	place-items: center;
+	font-family: 'IBM Plex Sans Condensed', sans-serif;
+	user-select: none;
+	-webkit-user-select: none;
+}
+
+.countdown-step {
+	position: relative;
+	line-height: 1;
+	will-change: transform, opacity;
+	transform-origin: 50% 50%;
+}
+
+.countdown-step-text {
+	display: inline-block;
+	font-weight: 700;
+	letter-spacing: 2px;
+	color: #edd6a8;
+	/* Blur radii kept under ~40px: rasterizing a 90–120px blur bitmap on 240–
+	   280px text at first paint was causing a frame spike exactly when the
+	   step element mounted. Glow intensity compensated via higher alpha. */
+	text-shadow:
+		0 0 18px rgba(255, 170, 60, 0.75),
+		0 0 36px rgba(255, 100, 30, 0.4),
+		0 4px 0 rgba(40, 20, 8, 0.45);
+}
+
+/* Digits (3, 2, 1) — 1000 ms each */
+
+.countdown-step:not(.countdown-step--go) .countdown-step-text {
+	font-size: clamp(160px, 26vw, 260px);
+}
+
+.countdown-step:not(.countdown-step--go) {
+	animation: countdown-digit 1000ms both;
+}
+
+/* START! — 900 ms, more emphasis */
+
+.countdown-step--go .countdown-step-text {
+	font-size: clamp(180px, 28vw, 280px);
+	letter-spacing: 6px;
+	color: #fff3d6;
+	/* See .countdown-step-text — blurs capped for first-paint perf. The old
+	   120px blur expanded the rasterized shadow bitmap to ~520×520px which
+	   coincided with setPhase('running') and produced a visible frame hitch. */
+	text-shadow:
+		0 0 22px rgba(255, 190, 80, 0.95),
+		0 0 45px rgba(255, 120, 40, 0.55),
+		0 4px 0 rgba(60, 26, 8, 0.55);
+}
+
+.countdown-step--go {
+	animation: countdown-go 900ms both;
+}
+
+/* ── Digit keyframes ──────────────────────
+   Entry: scale(1.6) → 1.0, opacity 0 → 1  (ease-out baked in)
+   Tiny overshoot tap at 22%
+   Held 25–75%
+   Exit: scale(1.0) → 2.4, opacity 1 → 0
+──────────────────────────────────────────── */
+
+@keyframes countdown-digit {
+	0% {
+		transform: scale(1.6);
+		opacity: 0;
+	}
+	18% {
+		transform: scale(1.0);
+		opacity: 1;
+	}
+	22% {
+		transform: scale(1.04);
+		opacity: 1;
+	}
+	25% {
+		transform: scale(1.0);
+		opacity: 1;
+	}
+	75% {
+		transform: scale(1.0);
+		opacity: 1;
+	}
+	100% {
+		transform: scale(2.4);
+		opacity: 0;
+	}
+}
+
+/* ── START! keyframes ─────────────────────
+   Entry 0–25%: punchy overshoot
+   25–70%: held with subtle breathing pulse
+   70–100%: scale up + fade out
+──────────────────────────────────────────── */
+
+@keyframes countdown-go {
+	0% {
+		transform: scale(0.4);
+		opacity: 0;
+	}
+	14% {
+		transform: scale(1.12);
+		opacity: 1;
+	}
+	22% {
+		transform: scale(0.98);
+		opacity: 1;
+	}
+	28% {
+		transform: scale(1.0);
+		opacity: 1;
+	}
+	45% {
+		transform: scale(1.04);
+		opacity: 1;
+	}
+	60% {
+		transform: scale(1.0);
+		opacity: 1;
+	}
+	70% {
+		transform: scale(1.0);
+		opacity: 1;
+	}
+	100% {
+		transform: scale(1.8);
+		opacity: 0;
+	}
+}
+
+/* ── Reduced motion ──────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+	.countdown-step:not(.countdown-step--go),
+	.countdown-step--go {
+		animation: countdown-fade 1000ms both;
+	}
+
+	.countdown-step--go {
+		animation-duration: 900ms;
+	}
+
+	@keyframes countdown-fade {
+		0% { opacity: 0; }
+		10% { opacity: 1; }
+		80% { opacity: 1; }
+		100% { opacity: 0; }
+	}
+}

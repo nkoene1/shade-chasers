@@ -2,6 +2,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useControls } from "leva";
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
+import { gameState } from "./gameState";
 import { type HeightMapData, getTerrainY } from "./useHeightMap";
 
 export const DEFAULT_DISTANCE = 2;
@@ -29,7 +30,11 @@ export function ThirdPersonCamera({ target, yawRef, heightMap, heightScale }: Th
   useEffect(() => {
     const canvas = gl.domElement;
 
-    const onClick = () => canvas.requestPointerLock();
+    const onClick = () => {
+      if (gameState.phase === "running" && !gameState.isDead) {
+        canvas.requestPointerLock();
+      }
+    };
 
     const onMouseMove = (e: MouseEvent) => {
       if (document.pointerLockElement !== canvas) return;

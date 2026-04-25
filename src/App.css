@@ -1,13 +1,125 @@
-.minimap-frame {
+/* Minimap frame styles moved to Hud.css */
+
+.death-message {
 	position: fixed;
-	bottom: var(--minimap-margin, 16px);
-	right: var(--minimap-margin, 16px);
-	width: var(--minimap-size, 180px);
-	height: var(--minimap-size, 180px);
-	opacity: var(--minimap-opacity, 1);
-	border: 2px solid rgba(255, 255, 255, 0.4);
-	border-radius: 4px;
-	pointer-events: none;
-	z-index: 10;
-	box-shadow: 0 0 12px rgba(0, 0, 0, 0.5);
+	inset: 0;
+	z-index: 30;
+	display: grid;
+	place-items: center;
+	pointer-events: auto;
+	font-family: 'IBM Plex Sans Condensed', sans-serif;
+	user-select: none;
+	-webkit-user-select: none;
+	background:
+		radial-gradient(circle at center, rgba(255, 80, 24, 0.14), transparent 34%),
+		rgba(10, 4, 8, 0.34);
+	animation: death-message-fade-in 240ms cubic-bezier(0.215, 0.61, 0.355, 1) both;
+}
+
+.death-message-card {
+	width: min(520px, calc(100vw - 40px));
+	padding: 28px 32px 30px;
+	border: 1px solid rgba(255, 212, 174, 0.38);
+	border-radius: 24px;
+	background: linear-gradient(180deg, rgba(39, 16, 18, 0.92), rgba(12, 6, 12, 0.88));
+	box-shadow:
+		0 24px 80px rgba(0, 0, 0, 0.48),
+		0 0 40px rgba(255, 74, 24, 0.2);
+	text-align: center;
+	text-transform: uppercase;
+	animation: death-message-card-enter 280ms cubic-bezier(0.23, 1, 0.32, 1) both;
+	will-change: transform, opacity;
+}
+
+.death-message-kicker {
+	margin-bottom: 10px;
+	color: #ffb27a;
+	font-size: 0.78rem;
+	font-weight: 700;
+	letter-spacing: 0.22em;
+}
+
+.death-message-title {
+	color: #fff4e8;
+	font-size: clamp(3rem, 9vw, 6.5rem);
+	font-weight: 700;
+	line-height: 0.9;
+	letter-spacing: 0.04em;
+	text-shadow:
+		0 0 22px rgba(255, 68, 22, 0.52),
+		0 4px 0 rgba(0, 0, 0, 0.34);
+}
+
+.death-message-body {
+	margin-top: 18px;
+	color: rgba(255, 236, 218, 0.84);
+	font-size: 0.95rem;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+}
+
+.death-message-button {
+	margin-top: 24px;
+	padding: 12px 22px;
+	border: 1px solid rgba(255, 232, 210, 0.7);
+	border-radius: 999px;
+	background: linear-gradient(180deg, #ffe0b5, #ff8d4a);
+	color: #2b0906;
+	box-shadow: 0 10px 28px rgba(255, 95, 32, 0.28);
+	cursor: pointer;
+	font: inherit;
+	font-size: 0.9rem;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	transition:
+		transform 150ms ease,
+		box-shadow 150ms ease;
+}
+
+.death-message-button:hover {
+	box-shadow: 0 14px 34px rgba(255, 95, 32, 0.36);
+	transform: translateY(-1px);
+}
+
+.death-message-button:active {
+	transform: translateY(1px) scale(0.98);
+}
+
+.death-message-button:focus-visible {
+	outline: 3px solid rgba(255, 244, 232, 0.85);
+	outline-offset: 4px;
+}
+
+@keyframes death-message-fade-in {
+	from {
+		opacity: 0;
+	}
+
+	to {
+		opacity: 1;
+	}
+}
+
+@keyframes death-message-card-enter {
+	from {
+		opacity: 0;
+		transform: translateY(18px) scale(0.96);
+	}
+
+	to {
+		opacity: 1;
+		transform: translateY(0) scale(1);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.death-message,
+	.death-message-card {
+		animation: none;
+	}
+
+	.death-message-button {
+		transition: none;
+	}
 }

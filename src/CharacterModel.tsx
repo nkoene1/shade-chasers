@@ -7,23 +7,34 @@ import * as THREE from "three";
 
 const MODEL_PATH = "/models/Adventurer.gltf";
 
-type AnimationName = "Idle" | "Run" | "Roll";
+type AnimationName = "Idle" | "Run" | "Roll" | "Death";
 
 interface CharacterModelProps {
   rigidBodyRef: React.RefObject<RapierRigidBody | null>;
   inShadowRef: React.RefObject<boolean>;
   groundedRef: React.RefObject<boolean>;
   rollingRef: React.RefObject<boolean>;
+  deadRef: React.RefObject<boolean>;
+  maxSpeed: number;
 }
 
 const MODEL_SCALE = 0.7;
 const MODEL_Y_OFFSET = -0.65;
+const MIN_RUN_TIME_SCALE = 0.25;
+// Rolling window length used to measure actual ground speed. Must be larger
+// than the physics timestep (1/60 s) so the sample always spans at least one
+// physics step, regardless of how fast the browser renders.
+const GROUND_SPEED_WINDOW_SEC = 0.1;
+
+type PosSample = { x: number; z: number; t: number };
 
 export function CharacterModel({
   rigidBodyRef,
   inShadowRef,
   groundedRef,
   rollingRef,
+  deadRef,
+  maxSpeed,
 }: CharacterModelProps) {
   const { faceLerp, speedThreshold, crossfadeDuration } = useControls(
     "Character Animation",
@@ -52,8 +63,7 @@ export function CharacterModel({
   const groupRef = useRef<THREE.Group>(null);
   const facingAngle = useRef(Math.PI);
   const burnBlend = useRef(0);
-  const prevPos = useRef<{ x: number; z: number } | null>(null);
-  const mobilityBlend = useRef(1);
+  const posSamples = useRef<PosSample[]>([]);
   const currentAction = useRef<AnimationName>("Idle");
 
   const gltf = useGLTF(MODEL_PATH);
@@ -84,23 +94,44 @@ export function CharacterModel({
     const rb = rigidBodyRef.current;
     if (!rb) return;
 
-    const pos = rb.translation();
+    // `vel` is the velocity Player.tsx just wrote this frame — it represents
+    // the player's *intent*, not what actually happened. We use it for the
+    // facing-rotation target so the character keeps rotating toward input
+    // even when the physics solver prevents motion.
     const vel = rb.linvel();
-    const velSpeed = Math.sqrt(vel.x * vel.x + vel.z * vel.z);
+    const intentSpeed = Math.sqrt(vel.x * vel.x + vel.z * vel.z);
 
-    let mobilityTarget = 1;
-    if (prevPos.current && delta > 0 && velSpeed > 0.1) {
-      const dx = pos.x - prevPos.current.x;
-      const dz = pos.z - prevPos.current.z;
-      const actualSpeed = Math.sqrt(dx * dx + dz * dz) / delta;
-      mobilityTarget = Math.min(actualSpeed / velSpeed, 1);
+    // Measure actual ground speed from a rolling window of post-physics
+    // positions. The window must span multiple physics steps, otherwise the
+    // render/physics timestep mismatch (~60 Hz physics vs ~120–144 Hz render)
+    // will make per-frame deltas alternate between 0 and a jumpy value, and
+    // the post-collision velocity reported by Rapier stays at whatever we set
+    // via setLinvel — so neither instantaneous signal is reliable.
+    const pos = rb.translation();
+    const now = performance.now() / 1000;
+    posSamples.current.push({ x: pos.x, z: pos.z, t: now });
+    while (
+      posSamples.current.length > 2 &&
+      posSamples.current[1].t <= now - GROUND_SPEED_WINDOW_SEC
+    ) {
+      posSamples.current.shift();
     }
-    prevPos.current = { x: pos.x, z: pos.z };
-    mobilityBlend.current +=
-      (mobilityTarget - mobilityBlend.current) * (1 - Math.exp(-10 * delta));
-
-    const horizontalSpeed = velSpeed * mobilityBlend.current;
+    const oldest = posSamples.current[0];
+    const sampleDt = now - oldest.t;
+    let horizontalSpeed = 0;
+    if (sampleDt > 1e-3) {
+      const dx = pos.x - oldest.x;
+      const dz = pos.z - oldest.z;
+      horizontalSpeed = Math.sqrt(dx * dx + dz * dz) / sampleDt;
+    }
     const isGrounded = groundedRef.current;
+
+    // Slow the run cycle to match effective ground speed (e.g. sliding along a wall)
+    const runAction = actions.Run;
+    if (runAction) {
+      const ratio = maxSpeed > 0 ? horizontalSpeed / maxSpeed : 1;
+      runAction.timeScale = THREE.MathUtils.clamp(ratio, MIN_RUN_TIME_SCALE, 1);
+    }
 
     // Sun burn emissive on skin
     const targetBurn = inShadowRef.current ? 0 : 1;
@@ -111,8 +142,10 @@ export function CharacterModel({
       mat.emissiveIntensity = burnBlend.current * burnIntensity;
     }
 
-    // Facing rotation
-    if (horizontalSpeed > speedThreshold && groupRef.current) {
+    // Facing rotation — gated on input intent, not effective ground speed, so
+    // the character keeps rotating toward its input direction even when
+    // blocked by a wall.
+    if (intentSpeed > speedThreshold && groupRef.current) {
       const targetAngle = Math.atan2(vel.x, vel.z);
       facingAngle.current = lerpAngle(
         facingAngle.current,
@@ -123,7 +156,23 @@ export function CharacterModel({
     }
 
     // Animation state
+    const isDead = deadRef.current;
     const isRolling = rollingRef.current;
+
+    if (isDead) {
+      if (currentAction.current !== "Death") {
+        const prev = actions[currentAction.current];
+        const death = actions.Death;
+        if (death) {
+          death.setLoop(THREE.LoopOnce, 1);
+          death.clampWhenFinished = true;
+          death.reset().fadeIn(crossfadeDuration).play();
+          if (prev && prev !== death) prev.fadeOut(crossfadeDuration);
+          currentAction.current = "Death";
+        }
+      }
+      return;
+    }
 
     if (isRolling && currentAction.current !== "Roll") {
       const prev = actions[currentAction.current];

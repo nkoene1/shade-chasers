@@ -9,14 +9,20 @@ alwaysApply: true
 
 A multiplayer 3D race-to-shelter game. Players sprint through a post-apocalyptic landscape where the sun is lethal radiation. Shadows cast by obstacles are the only safe zones. The sun moves over time, so shadows shift — players must read the environment and adapt their path in real time.
 
-## Core Loop
+## Multiplayer Loop
 
 1. Players join a web lobby, get a random (changeable) username
-2. Up to 20 players per lobby; game starts after 60 s countdown or when full
+2. Up to 20 players per lobby; game starts after 30 s countdown or when full
 3. All players start simultaneously and race on foot toward a finish-line shelter
-4. Exposure to sunlight drains a tolerance meter; depletion = death
-5. Collectible items (e.g. protective clothing) scattered on the map extend tolerance
+4. Exposure to sunlight drains a health meter; depletion = death
+5. Collectible items (e.g. protective clothing) scattered on the map extend tolerance (tolerance = speed at which health is decreased from sun exposure)
 6. Shadows move with the sun — safe routes change over time
+
+## Singleplayer Loop
+
+1. Players spawn in the map with a 3 second countdown to start
+2. Maneuver the map on foot toward a finish-line shelter
+3. The time from start to finish is saved in a global scoreboard
 
 ## Visual Identity
 

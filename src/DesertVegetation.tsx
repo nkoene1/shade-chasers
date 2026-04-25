@@ -143,8 +143,9 @@ function extractLOD0Geometry(scene: THREE.Group): THREE.BufferGeometry | null {
   scene.updateMatrixWorld(true);
   scene.traverse((child) => {
     if (!geo && child instanceof THREE.Mesh) {
-      geo = child.geometry.clone();
-      geo.applyMatrix4(child.matrixWorld);
+      const g = child.geometry.clone();
+      g.applyMatrix4(child.matrixWorld);
+      geo = g;
     }
   });
   return geo;

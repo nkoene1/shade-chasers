@@ -5,7 +5,11 @@ import { useControls } from "leva";
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { CharacterModel } from "./CharacterModel";
+import { gameState } from "./gameState";
 import { DEFAULT_DISTANCE } from "./ThirdPersonCamera";
+import { useDistanceProgress } from "./useDistanceProgress";
+import { useFinishLine } from "./useFinishLine";
+import { useHealth } from "./useHealth";
 import { TERRAIN_SIZE } from "./useHeightMap";
 import { useShadowDetection } from "./useShadowDetection";
 
@@ -16,9 +20,16 @@ interface PlayerProps {
   sunPositionRef: React.RefObject<THREE.Vector3>;
 }
 
+// Reusable scratch vectors for per-frame movement math. Allocating these inside
+// useFrame would create three Vector3 objects every frame the player is active,
+// adding steady GC pressure the moment the round transitions to 'running'.
+const _forward = new THREE.Vector3();
+const _right = new THREE.Vector3();
+const _dir = new THREE.Vector3();
+
 export function Player({ rigidBodyRef, meshRef, yawRef, sunPositionRef }: PlayerProps) {
   const { speed, jumpVelocity, airControl, rollSpeed, rollDuration, rollCooldown } = useControls("Player", {
-    speed: { value: 6, min: 1, max: 20, step: 0.5 },
+    speed: { value: 5, min: 1, max: 20, step: 0.5 },
     jumpVelocity: { value: 8, min: 1, max: 15, step: 0.5 },
     airControl: { value: 0.3, min: 0, max: 1, step: 0.05 },
     rollSpeed: { value: 4, min: 4, max: 30, step: 0.5 },
@@ -37,6 +48,9 @@ export function Player({ rigidBodyRef, meshRef, yawRef, sunPositionRef }: Player
   const rollCooldownTimer = useRef(0);
   const rollDir = useRef(new THREE.Vector3());
   const inShadow = useShadowDetection(rigidBodyRef, sunPositionRef, rollingRef);
+  const deadRef = useHealth(inShadow);
+  useDistanceProgress(rigidBodyRef);
+  useFinishLine(rigidBodyRef);
 
   useEffect(() => {
     const handleDown = (e: KeyboardEvent) => {
@@ -62,17 +76,36 @@ export function Player({ rigidBodyRef, meshRef, yawRef, sunPositionRef }: Player
     const rb = rigidBodyRef.current;
     if (!rb) return;
 
+    if (deadRef.current) {
+      const v = rb.linvel();
+      rb.setLinvel({ x: 0, y: Math.min(v.y, 0), z: 0 }, true);
+      rollingRef.current = false;
+      jumpPressed.current = false;
+      rollRequested.current = false;
+      return;
+    }
+
+    if (gameState.phase !== 'running') {
+      const v = rb.linvel();
+      rb.setLinvel({ x: 0, y: Math.min(v.y, 0), z: 0 }, true);
+      rollingRef.current = false;
+      rollTimer.current = 0;
+      jumpPressed.current = false;
+      rollRequested.current = false;
+      return;
+    }
+
     const yaw = yawRef.current ?? 0;
-    const forward = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
-    const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+    _forward.set(Math.sin(yaw), 0, Math.cos(yaw));
+    _right.set(Math.cos(yaw), 0, -Math.sin(yaw));
 
-    const dir = new THREE.Vector3();
-    if (keys.current.w) dir.add(forward);
-    if (keys.current.s) dir.sub(forward);
-    if (keys.current.a) dir.add(right);
-    if (keys.current.d) dir.sub(right);
+    _dir.set(0, 0, 0);
+    if (keys.current.w) _dir.add(_forward);
+    if (keys.current.s) _dir.sub(_forward);
+    if (keys.current.a) _dir.add(_right);
+    if (keys.current.d) _dir.sub(_right);
 
-    if (dir.lengthSq() > 0) dir.normalize().multiplyScalar(speed);
+    if (_dir.lengthSq() > 0) _dir.normalize().multiplyScalar(speed);
 
     const vel = rb.linvel();
     const isGrounded = groundContacts.current > 0;
@@ -88,11 +121,11 @@ export function Player({ rigidBodyRef, meshRef, yawRef, sunPositionRef }: Player
       isGrounded &&
       !rollingRef.current &&
       rollCooldownTimer.current <= 0 &&
-      dir.lengthSq() > 0
+      _dir.lengthSq() > 0
     ) {
       rollingRef.current = true;
       rollTimer.current = rollDuration;
-      rollDir.current.copy(dir).normalize().multiplyScalar(rollSpeed);
+      rollDir.current.copy(_dir).normalize().multiplyScalar(rollSpeed);
     }
     rollRequested.current = false;
 
@@ -122,14 +155,14 @@ export function Player({ rigidBodyRef, meshRef, yawRef, sunPositionRef }: Player
 
     if (isGrounded) {
       if (!risingFromJump.current) yVel = Math.min(yVel, 0);
-      rb.setLinvel({ x: dir.x, y: yVel, z: dir.z }, true);
+      rb.setLinvel({ x: _dir.x, y: yVel, z: _dir.z }, true);
     } else {
       let hx = vel.x;
       let hz = vel.z;
-      if (dir.lengthSq() > 0) {
+      if (_dir.lengthSq() > 0) {
         const t = 1 - Math.exp(-airControl * 3 * delta);
-        hx += (dir.x - hx) * t;
-        hz += (dir.z - hz) * t;
+        hx += (_dir.x - hx) * t;
+        hz += (_dir.z - hz) * t;
       }
       rb.setLinvel({ x: hx, y: yVel, z: hz }, true);
     }
@@ -154,7 +187,14 @@ export function Player({ rigidBodyRef, meshRef, yawRef, sunPositionRef }: Player
         onIntersectionExit={onGroundExit}
       />
       <group ref={meshRef}>
-        <CharacterModel rigidBodyRef={rigidBodyRef} inShadowRef={inShadow} groundedRef={groundedRef} rollingRef={rollingRef} />
+        <CharacterModel
+          rigidBodyRef={rigidBodyRef}
+          inShadowRef={inShadow}
+          groundedRef={groundedRef}
+          rollingRef={rollingRef}
+          deadRef={deadRef}
+          maxSpeed={speed}
+        />
       </group>
     </RigidBody>
   );
