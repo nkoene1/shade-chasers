@@ -1,4 +1,3 @@
-import { Stats } from '@react-three/drei';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Bloom, EffectComposer, Vignette } from '@react-three/postprocessing';
 import type { RapierRigidBody } from '@react-three/rapier';
@@ -22,10 +21,13 @@ import { RepeatingGround } from './RepeatingGround';
 import { SandstormBarrier } from './SandstormBarrier';
 import type { ScoreboardUser } from './scoreboardApi';
 import { Sun, SUN_LAYER } from './Sun';
-import { ThirdPersonCamera, DEFAULT_DISTANCE } from './ThirdPersonCamera';
-import { TERRAIN_SIZE, useHeightMap } from './useHeightMap';
+import { DEFAULT_DISTANCE, ThirdPersonCamera } from './ThirdPersonCamera';
+import { getTerrainY, TERRAIN_SIZE, useHeightMap } from './useHeightMap';
 
-const PLAYER_SPAWN: [number, number, number] = [0, 10, TERRAIN_SIZE / 2 - DEFAULT_DISTANCE - 1];
+const PLAYER_SPAWN_X = 0;
+const PLAYER_SPAWN_Z = TERRAIN_SIZE / 2 - DEFAULT_DISTANCE - 1;
+const PLAYER_SPAWN_Y_OFFSET = 0.7;
+const ROUND_SOUNDTRACK_PATH = '/audio/round-soundtrack.mp3';
 
 type FinishResult = {
 	finishTimeMs: number;
@@ -50,6 +52,8 @@ const Scene = memo(
 	const playerRef = useRef<RapierRigidBody>(null);
 	const playerMeshRef = useRef<THREE.Group>(null);
 	const yawRef = useRef(Math.PI);
+	const spawnPositionRef = useRef<[number, number, number] | null>(null);
+	const [groundReady, setGroundReady] = useState(false);
 
 	const heightMap = useHeightMap('/height-maps/sand-dunes.png');
 
@@ -64,6 +68,33 @@ const Scene = memo(
 		{ collapsed: true },
 	);
 
+	const spawnPosition = useMemo<[number, number, number] | null>(() => {
+		if (!heightMap) return null;
+		return [
+			PLAYER_SPAWN_X,
+			getTerrainY(heightMap, heightScale, PLAYER_SPAWN_X, PLAYER_SPAWN_Z) + PLAYER_SPAWN_Y_OFFSET,
+			PLAYER_SPAWN_Z,
+		];
+	}, [heightMap, heightScale]);
+	const terrainColorSteps = useMemo<[number, number]>(
+		() => [colorStep2, colorStep3],
+		[colorStep2, colorStep3],
+	);
+
+	useEffect(() => {
+		if (!heightMap) {
+			setGroundReady(false);
+		}
+	}, [heightMap]);
+
+	useEffect(() => {
+		spawnPositionRef.current = spawnPosition;
+	}, [spawnPosition]);
+
+	const handleGroundReady = useCallback(() => {
+		setGroundReady(true);
+	}, []);
+
 	// Sun starts slightly below the horizon (-15°) so the directional light's
 	// position and the 4096² shadow-map frustum are already at the race-start
 	// configuration during pre-round/countdown. Without this, the first timer
@@ -72,10 +103,25 @@ const Scene = memo(
 	// lowered frustum — a ~tens-of-ms hitch at round start.
 	const DEFAULT_SUN_ANGLE = -3;
 
-	const [{ background, ambientIntensity, sunAngle, sunDirection, sunDistance, sunSize, sunIntensity, shadowRadius }, setLighting] =
+	const [{
+		background,
+		ambientIntensity,
+		hemisphereIntensity,
+		hemisphereSkyColor,
+		hemisphereGroundColor,
+		sunAngle,
+		sunDirection,
+		sunDistance,
+		sunSize,
+		sunIntensity,
+		shadowRadius,
+	}, setLighting] =
 		useControls('Lighting', () => ({
 			background: '#87CEEB',
 			ambientIntensity: { value: 0.4, min: 0, max: 2, step: 0.05 },
+			hemisphereIntensity: { value: 0.25, min: 0, max: 2, step: 0.05, label: 'Hemisphere Fill' },
+			hemisphereSkyColor: { value: '#f1dfb2', label: 'Hemisphere Sky' },
+			hemisphereGroundColor: { value: '#4a3a2a', label: 'Hemisphere Ground' },
 			sunAngle: { value: DEFAULT_SUN_ANGLE, min: DEFAULT_SUN_ANGLE, max: 90, step: 1, label: 'Sun Angle (-3%–90%)' },
 			sunDirection: { value: 270, min: 0, max: 360, step: 1, label: 'Sun Direction (°)' },
 			sunDistance: { value: 80, min: 80, max: 200, step: 5 },
@@ -132,9 +178,10 @@ const Scene = memo(
 			},
 			resetPlayerToSpawn: () => {
 				const rb = playerRef.current;
-				if (!rb) return;
+				const spawnPosition = spawnPositionRef.current;
+				if (!rb || !spawnPosition) return;
 				yawRef.current = Math.PI;
-				const [x, y, z] = PLAYER_SPAWN;
+				const [x, y, z] = spawnPosition;
 				rb.setTranslation({ x, y, z }, true);
 				rb.setLinvel({ x: 0, y: 0, z: 0 }, true);
 				rb.setAngvel({ x: 0, y: 0, z: 0 }, true);
@@ -216,6 +263,9 @@ const Scene = memo(
 			<color attach="background" args={[background]} />
 			<fogExp2 attach="fog" args={[fogColor, fogDensity]} />
 			<ambientLight intensity={ambientIntensity} />
+			<hemisphereLight
+				args={[hemisphereSkyColor, hemisphereGroundColor, hemisphereIntensity]}
+			/>
 			<directionalLight
 				ref={directionalLightRef}
 				castShadow
@@ -236,23 +286,27 @@ const Scene = memo(
 				<RepeatingGround
 					heightMap={heightMap}
 					heightScale={heightScale}
-					colorSteps={[colorStep2, colorStep3]}
+					colorSteps={terrainColorSteps}
 				/>
 				<Ground
 					heightMap={heightMap}
 					subdivisions={subdivisions}
 					heightScale={heightScale}
-					colorSteps={[colorStep2, colorStep3]}
+					colorSteps={terrainColorSteps}
+					onReady={handleGroundReady}
 				/>
 				<SandstormBarrier />
 				<FinishArea heightMap={heightMap} heightScale={heightScale} />
 				<Obstacles />
-				<Player
-					rigidBodyRef={playerRef}
-					meshRef={playerMeshRef}
-					yawRef={yawRef}
-					sunPositionRef={sunPositionRef}
-				/>
+				{groundReady && spawnPosition && (
+					<Player
+						rigidBodyRef={playerRef}
+						meshRef={playerMeshRef}
+						yawRef={yawRef}
+						sunPositionRef={sunPositionRef}
+						spawnPosition={spawnPosition}
+					/>
+				)}
 				<ThirdPersonCamera target={playerMeshRef} yawRef={yawRef} heightMap={heightMap} heightScale={heightScale} />
 			</Physics>
 			<DesertVegetation heightMap={heightMap} heightScale={heightScale} />
@@ -275,7 +329,16 @@ const Scene = memo(
 export default function App() {
 	const sceneRef = useRef<SceneHandle>(null);
 	const gameCanvasRef = useRef<HTMLCanvasElement | null>(null);
+	const roundMusicRef = useRef<HTMLAudioElement | null>(null);
+	const roundMusicPlayingRef = useRef(false);
 	const [phase, setPhase] = useState<RoundPhase>('pre-round');
+	const { roundMusicVolume } = useControls(
+		'Round Music',
+		{
+			roundMusicVolume: { value: 0.05, min: 0, max: 1, step: 0.01, label: 'Volume' },
+		},
+		{ collapsed: true },
+	);
 	// Decoupled from `phase` so the "START!" flourish can keep rendering for
 	// ~900 ms after phase transitions to 'running'. Gating the Countdown on
 	// phase alone unmounts it the same tick onGo fires (React 18 batches the
@@ -352,6 +415,58 @@ export default function App() {
 	}, [phase]);
 
 	useEffect(() => {
+		const audio = roundMusicRef.current;
+		if (audio) audio.volume = roundMusicVolume;
+	}, [roundMusicVolume]);
+
+	useEffect(() => {
+		const audio = new Audio(ROUND_SOUNDTRACK_PATH);
+		audio.loop = true;
+		audio.preload = 'auto';
+		audio.volume = roundMusicVolume;
+		roundMusicRef.current = audio;
+
+		return () => {
+			audio.pause();
+			audio.src = '';
+			roundMusicRef.current = null;
+		};
+	}, []);
+
+	useEffect(() => {
+		const audio = roundMusicRef.current;
+		if (!audio) return;
+
+		const requestPlayOnce = () => {
+			try {
+				const p = audio.play();
+				void p.catch(() => undefined);
+			} catch {
+				//
+			}
+		};
+
+		if (phase === 'pre-round') {
+			audio.pause();
+			audio.currentTime = 0;
+			roundMusicPlayingRef.current = false;
+			return;
+		}
+
+		if (!roundMusicPlayingRef.current) {
+			audio.currentTime = 0;
+			requestPlayOnce();
+			roundMusicPlayingRef.current = true;
+			return;
+		}
+
+		// Returning from overlays can unblock autoplay; keep it playing quietly if needed.
+		if (audio.paused) {
+			requestPlayOnce();
+		}
+	}, [phase]);
+
+	useEffect(() => {
 		if (phase === 'countdown' || phase === 'running') {
 			sceneRef.current?.startSunIfNeeded();
 		}
@@ -373,14 +488,13 @@ export default function App() {
 
 	return (
 		<>
-			<Leva collapsed />
+			<Leva hidden />
 			<Canvas
 				shadows
 				onCreated={({ gl }) => {
 					gameCanvasRef.current = gl.domElement;
 				}}
 			>
-				<Stats />
 				<Scene ref={sceneRef} />
 			</Canvas>
 			<Hud />

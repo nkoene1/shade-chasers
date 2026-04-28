@@ -111,15 +111,15 @@ export function FinishArea({ heightMap, heightScale }: FinishAreaProps) {
   } = useControls(
     "Finish Area",
     {
-      radius: { value: 4, min: 2, max: 25, step: 0.5 },
-      wallHeight: { value: 10, min: 1, max: 30, step: 0.5, label: "Wall Height" },
+      radius: { value: 3, min: 2, max: 25, step: 0.5 },
+      wallHeight: { value: 2, min: 1, max: 30, step: 0.5, label: "Wall Height" },
       fadePower: { value: DEFAULT_FADE_POWER, min: 0.5, max: 10, step: 0.1, label: "Fade Steepness" },
       color: DEFAULT_COLOR_HEX,
       wallOpacity: { value: DEFAULT_WALL_OPACITY, min: 0, max: 1, step: 0.05, label: "Wall Opacity" },
       groundOpacity: { value: DEFAULT_GROUND_OPACITY, min: 0, max: 1, step: 0.05, label: "Ground Opacity" },
       groundLift: { value: DEFAULT_GROUND_LIFT, min: -1, max: 1, step: 0.01, label: "Ground Lift" },
-      positionX: { value: 0, min: -45, max: 45, step: 0.5, label: "Position X" },
-      positionZ: { value: -45, min: -50, max: 45, step: 0.5, label: "Position Z" },
+      positionX: { value: 1.5, min: -45, max: 45, step: 0.5, label: "Position X" },
+      positionZ: { value: -43.5, min: -50, max: 45, step: 0.5, label: "Position Z" },
     },
     { collapsed: true },
   );

@@ -1,0 +1,12 @@
+- [x] Current place top left
+- [x] Map bottom right
+- [ ] Add obstacles
+- [ ] Post processing effect while taking damage (maybe red vignette?)
+- [x] Start screen background video
+- [ ] Controls/key bindings legend
+- [x] Sound effects & music
+- [ ] Tolerance stat + items to collect
+- [ ] Let round end after high noon is reached (?)
+- [ ] Database fetches flaky on deployed site
+- [ ] A plane with a banner blocking the sun for a few seconds
+- [ ] Female character model to pick

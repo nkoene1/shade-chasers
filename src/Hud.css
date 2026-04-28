@@ -66,6 +66,31 @@
 	align-self: center;
 }
 
+.hud-position--too-slow {
+	gap: 5px;
+	align-items: baseline;
+}
+
+.hud-position--too-slow .hud-position-number,
+.hud-position--too-slow .hud-position-suffix {
+	font-size: 32px;
+	font-weight: 700;
+	line-height: 1;
+	color: #edd6a8;
+	letter-spacing: 1px;
+	text-transform: uppercase;
+	text-shadow: 0 0 12px rgba(255, 170, 60, 0.3);
+}
+
+.hud-position--too-slow .hud-position-suffix {
+	align-self: baseline;
+	margin-top: 0;
+}
+
+.hud-position--too-slow .hud-position-label {
+	display: none;
+}
+
 /* ── Timer (top-center) ───────────────── */
 
 .hud-timer {

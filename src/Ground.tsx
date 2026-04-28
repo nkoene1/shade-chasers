@@ -1,5 +1,5 @@
 import { RigidBody, TrimeshCollider } from "@react-three/rapier";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import * as THREE from "three";
 import {
   type HeightMapData,
@@ -12,9 +12,10 @@ interface GroundProps {
   subdivisions: number;
   heightScale: number;
   colorSteps: [number, number];
+  onReady?: () => void;
 }
 
-export function Ground({ heightMap, subdivisions, heightScale, colorSteps }: GroundProps) {
+export function Ground({ heightMap, subdivisions, heightScale, colorSteps, onReady }: GroundProps) {
   const terrain = useMemo(() => {
     if (!heightMap) return null;
 
@@ -82,6 +83,11 @@ export function Ground({ heightMap, subdivisions, heightScale, colorSteps }: Gro
 
     return { renderGeo, colliderVertices, colliderIndices };
   }, [heightMap, subdivisions, heightScale, colorSteps]);
+
+  useEffect(() => {
+    if (!terrain) return;
+    onReady?.();
+  }, [terrain, onReady]);
 
   if (!terrain) return null;
 

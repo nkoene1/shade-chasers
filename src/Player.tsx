@@ -6,18 +6,18 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { CharacterModel } from "./CharacterModel";
 import { gameState } from "./gameState";
-import { DEFAULT_DISTANCE } from "./ThirdPersonCamera";
 import { useDistanceProgress } from "./useDistanceProgress";
 import { useFinishLine } from "./useFinishLine";
 import { useHealth } from "./useHealth";
-import { TERRAIN_SIZE } from "./useHeightMap";
 import { useShadowDetection } from "./useShadowDetection";
+import { useRunningSandAudio } from "./useRunningSandAudio";
 
 interface PlayerProps {
   rigidBodyRef: React.RefObject<RapierRigidBody | null>;
   meshRef: React.RefObject<THREE.Group | null>;
   yawRef: React.RefObject<number>;
   sunPositionRef: React.RefObject<THREE.Vector3>;
+  spawnPosition: [number, number, number];
 }
 
 // Reusable scratch vectors for per-frame movement math. Allocating these inside
@@ -27,7 +27,7 @@ const _forward = new THREE.Vector3();
 const _right = new THREE.Vector3();
 const _dir = new THREE.Vector3();
 
-export function Player({ rigidBodyRef, meshRef, yawRef, sunPositionRef }: PlayerProps) {
+export function Player({ rigidBodyRef, meshRef, yawRef, sunPositionRef, spawnPosition }: PlayerProps) {
   const { speed, jumpVelocity, airControl, rollSpeed, rollDuration, rollCooldown } = useControls("Player", {
     speed: { value: 6, min: 1, max: 20, step: 0.5 },
     jumpVelocity: { value: 8, min: 1, max: 15, step: 0.5 },
@@ -51,6 +51,13 @@ export function Player({ rigidBodyRef, meshRef, yawRef, sunPositionRef }: Player
   const deadRef = useHealth(inShadow);
   useDistanceProgress(rigidBodyRef);
   useFinishLine(rigidBodyRef);
+  useRunningSandAudio({
+    rigidBodyRef,
+    groundedRef,
+    rollingRef,
+    deadRef,
+    maxSpeed: speed,
+  });
 
   useEffect(() => {
     const handleDown = (e: KeyboardEvent) => {
@@ -175,7 +182,7 @@ export function Player({ rigidBodyRef, meshRef, yawRef, sunPositionRef }: Player
     <RigidBody
       ref={rigidBodyRef}
       colliders={false}
-      position={[0, 10, TERRAIN_SIZE / 2 - DEFAULT_DISTANCE - 1]}
+      position={spawnPosition}
       lockRotations
     >
       <CapsuleCollider args={[0.35, 0.3]} />

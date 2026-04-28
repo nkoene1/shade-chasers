@@ -7,8 +7,8 @@ export function useHealth(inShadowRef: React.RefObject<boolean>) {
 	const { drainRate, regenRate } = useControls(
 		'Health',
 		{
-			drainRate: { value: 12, min: 1, max: 40, step: 1, label: 'Drain / sec' },
-			regenRate: { value: 4, min: 0.5, max: 20, step: 0.5, label: 'Regen / sec' },
+			drainRate: { value: 16, min: 1, max: 40, step: 1, label: 'Drain / sec' },
+			regenRate: { value: 6, min: 0.5, max: 20, step: 0.5, label: 'Regen / sec' },
 		},
 		{ collapsed: true },
 	);
