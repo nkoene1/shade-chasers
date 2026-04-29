@@ -2,6 +2,10 @@
    HUD — Scorched / Survivalist Theme
    ═══════════════════════════════════════════ */
 
+:root {
+	--hud-edge-inset: 24px;
+}
+
 .hud {
 	position: fixed;
 	inset: 0;
@@ -30,8 +34,8 @@
 /* ── Position indicator (top-left) ─────── */
 
 .hud-position {
-	top: 24px;
-	left: 24px;
+	top: var(--hud-edge-inset);
+	left: var(--hud-edge-inset);
 	display: flex;
 	align-items: baseline;
 	gap: 2px;
@@ -94,7 +98,7 @@
 /* ── Timer (top-center) ───────────────── */
 
 .hud-timer {
-	top: 24px;
+	top: var(--hud-edge-inset);
 	left: 50%;
 	transform: translateX(-50%);
 	padding: 8px 24px;
@@ -113,8 +117,8 @@
 /* ── Progress (top-right) ──────────────── */
 
 .hud-progress {
-	top: 24px;
-	right: 24px;
+	top: var(--hud-edge-inset);
+	right: var(--hud-edge-inset);
 	padding: 10px 18px 12px;
 	border-radius: 4px;
 	min-width: 160px;
@@ -157,16 +161,77 @@
 	transition: width 0.3s ease;
 }
 
+.hud-bottom-left {
+	--hud-controls-row-gap: 8px;
+	position: absolute;
+	bottom: var(--hud-edge-inset);
+	left: var(--hud-edge-inset);
+	display: flex;
+	flex-direction: column;
+	gap: calc(var(--hud-controls-row-gap) * 4);
+	width: min(280px, calc(100vw - 2 * var(--hud-edge-inset)));
+}
+
+.hud-controls {
+	position: relative;
+	z-index: 2;
+	width: 100%;
+	display: none;
+	text-shadow: 0 1px 6px rgba(0, 0, 0, 0.55);
+}
+
+.hud--show-controls .hud-controls {
+	display: block;
+}
+
+.hud-controls-list {
+	display: flex;
+	flex-direction: column;
+	gap: var(--hud-controls-row-gap);
+}
+
+.hud-controls-item {
+	display: grid;
+	grid-template-columns: 72px 1fr;
+	align-items: center;
+	gap: 10px;
+	font-size: 15px;
+	color: #ede4d0;
+}
+
+.hud-controls-key {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 24px;
+	padding: 3px 8px;
+	font-family: inherit;
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: 1px;
+	color: #f0d8a0;
+	background: rgba(0, 0, 0, 0.45);
+	border: 1px solid rgba(255, 200, 120, 0.28);
+	border-radius: 4px;
+}
+
+.hud-controls-action {
+	font-weight: 500;
+	letter-spacing: 1px;
+	color: rgba(237, 228, 208, 0.68);
+}
+
 /* ═══════════════════════════════════════════
    Health Bar
    ═══════════════════════════════════════════ */
 
 .hud-health {
-	bottom: 24px;
-	left: 24px;
+	position: relative;
+	z-index: 1;
 	padding: 10px 16px 14px;
 	border-radius: 4px;
-	min-width: 280px;
+	min-width: 0;
+	width: 100%;
 }
 
 .hud-health-header {
@@ -468,13 +533,84 @@
 }
 
 /* ═══════════════════════════════════════════
+   Finish Waypoint
+   ═══════════════════════════════════════════ */
+
+.finish-waypoint {
+	position: fixed;
+	top: 0;
+	left: 0;
+	z-index: 23;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 3px;
+	min-width: 48px;
+	padding: 7px 9px 6px;
+	color: #75fff0;
+	background: linear-gradient(135deg, rgba(4, 24, 30, 0.9), rgba(7, 13, 20, 0.86));
+	border: 1px solid rgba(117, 255, 240, 0.48);
+	border-radius: 999px;
+	box-shadow:
+		0 0 18px rgba(0, 0, 0, 0.62),
+		0 0 20px rgba(77, 227, 208, 0.22),
+		inset 0 1px 0 rgba(190, 255, 248, 0.16);
+	text-transform: uppercase;
+	text-shadow: 0 0 10px rgba(77, 227, 208, 0.42);
+	transition: opacity 180ms ease;
+	will-change: transform, opacity;
+}
+
+.finish-waypoint::after {
+	content: '';
+	position: absolute;
+	left: 50%;
+	bottom: -7px;
+	width: 12px;
+	height: 12px;
+	background: inherit;
+	border-right: 1px solid rgba(117, 255, 240, 0.48);
+	border-bottom: 1px solid rgba(117, 255, 240, 0.48);
+	transform: translateX(-50%) rotate(45deg);
+}
+
+.finish-waypoint-icon {
+	position: relative;
+	z-index: 1;
+	width: 22px;
+	height: 22px;
+	filter: drop-shadow(0 0 8px rgba(77, 227, 208, 0.45));
+}
+
+.finish-waypoint-distance {
+	position: relative;
+	z-index: 1;
+	max-height: 0;
+	opacity: 0;
+	font-size: 11px;
+	font-weight: 700;
+	line-height: 1;
+	letter-spacing: 1px;
+	color: #d9fffb;
+	font-variant-numeric: tabular-nums;
+	transition:
+		max-height 180ms ease,
+		opacity 180ms ease;
+}
+
+.finish-waypoint--focused .finish-waypoint-distance {
+	max-height: 14px;
+	opacity: 1;
+}
+
+/* ═══════════════════════════════════════════
    Minimap Restyle
    ═══════════════════════════════════════════ */
 
 .minimap-frame {
 	position: fixed;
-	bottom: var(--minimap-margin, 16px);
-	right: var(--minimap-margin, 16px);
+	bottom: var(--hud-edge-inset);
+	right: var(--hud-edge-inset);
 	width: var(--minimap-size, 180px);
 	height: var(--minimap-size, 180px);
 	opacity: var(--minimap-opacity, 1);
@@ -493,19 +629,50 @@
 	);
 }
 
-.minimap-label {
+.minimap-finish-marker {
 	position: fixed;
-	bottom: calc(var(--minimap-margin, 16px) + var(--minimap-size, 180px) + 4px);
-	right: var(--minimap-margin, 16px);
-	width: var(--minimap-size, 180px);
-	text-align: center;
-	font-family: 'IBM Plex Sans Condensed', sans-serif;
-	font-size: 11px;
-	font-weight: 500;
-	color: #7a6848;
-	letter-spacing: 2px;
-	text-transform: uppercase;
-	pointer-events: none;
-	z-index: 20;
-	user-select: none;
+	top: 0;
+	left: 0;
+	z-index: 22;
+	display: grid;
+	place-items: center;
+	width: 24px;
+	height: 24px;
+	color: #75fff0;
+	border: 1px solid rgba(117, 255, 240, 0.68);
+	border-radius: 999px;
+	background: radial-gradient(circle, rgba(11, 47, 54, 0.95), rgba(6, 16, 24, 0.9));
+	box-shadow:
+		0 0 12px rgba(77, 227, 208, 0.5),
+		0 0 0 3px rgba(77, 227, 208, 0.14);
+	will-change: transform;
+}
+
+.minimap-finish-icon {
+	width: 15px;
+	height: 15px;
+	filter: drop-shadow(0 0 6px rgba(77, 227, 208, 0.55));
+}
+
+.minimap-player-marker {
+	position: fixed;
+	top: 0;
+	left: 0;
+	z-index: 23;
+	width: 12px;
+	height: 12px;
+	border: 2px solid rgba(255, 238, 188, 0.94);
+	border-radius: 999px;
+	background: #e8a040;
+	box-shadow:
+		0 0 10px rgba(232, 160, 64, 0.78),
+		0 0 0 3px rgba(200, 120, 48, 0.22);
+	will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.finish-waypoint,
+	.finish-waypoint-distance {
+		transition: none;
+	}
 }

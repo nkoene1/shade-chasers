@@ -21,6 +21,13 @@ const MENU_BACKGROUND_VIDEO_EASE_SECONDS = 0.8;
 const MENU_BACKGROUND_VIDEO_MIN_PLAYBACK_RATE = 0.75;
 const MENU_MUSIC_ON_STORAGE_KEY = 'shade-chasers-menu-music-on';
 
+const PLAYER_ACTIONS = [
+	{ keys: 'WASD', action: 'Run' },
+	{ keys: 'Mouse', action: 'Look' },
+	{ keys: 'Space', action: 'Jump' },
+	{ keys: 'Shift', action: 'Roll' },
+];
+
 function loadStoredMenuMusicOn(): boolean | null {
 	try {
 		const raw = localStorage.getItem(MENU_MUSIC_ON_STORAGE_KEY);
@@ -393,6 +400,17 @@ export function PreRoundOverlay({ onStart }: PreRoundOverlayProps) {
 					</ol>
 				)}
 			</div>
+			<aside className="preround-action-legend" aria-label="Player controls">
+				<div className="preround-action-legend-title">Controls</div>
+				<div className="preround-action-legend-list">
+					{PLAYER_ACTIONS.map(({ keys, action }) => (
+						<div key={action} className="preround-action-legend-item">
+							<kbd className="preround-action-legend-key">{keys}</kbd>
+							<span className="preround-action-legend-action">{action}</span>
+						</div>
+					))}
+				</div>
+			</aside>
 			<div className="preround-content">
 				<div className="preround-tagline">OUTRUN THE SUN</div>
 				<h1 className="preround-title">SHADE CHASERS</h1>

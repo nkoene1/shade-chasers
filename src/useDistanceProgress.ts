@@ -44,15 +44,17 @@ export function useDistanceProgress(
 	const sinceLastCheckRef = useRef(0);
 
 	useFrame((_, delta) => {
+		const rb = rigidBodyRef.current;
+		if (!rb) return;
+
 		if (gameState.phase !== 'running') {
+			const pos = rb.translation();
+			gameState.finishDistanceMeters = distanceToFinishEdge(pos.x, pos.z);
 			initialDistanceRef.current = null;
 			sinceLastCheckRef.current = 0;
 			if (gameState.progress !== 0) gameState.progress = 0;
 			return;
 		}
-
-		const rb = rigidBodyRef.current;
-		if (!rb) return;
 
 		if (initialDistanceRef.current === null) {
 			initialDistanceRef.current = distanceToFinishEdge(SPAWN_X, SPAWN_Z);
@@ -68,6 +70,7 @@ export function useDistanceProgress(
 		const pos = rb.translation();
 		const current = distanceToFinishEdge(pos.x, pos.z);
 		const initial = initialDistanceRef.current;
+		gameState.finishDistanceMeters = current;
 
 		const raw = initial > 0 ? 1 - current / initial : 1;
 		const progress = raw < 0 ? 0 : raw > 1 ? 1 : raw;

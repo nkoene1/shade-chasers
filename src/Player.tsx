@@ -83,6 +83,11 @@ export function Player({ rigidBodyRef, meshRef, yawRef, sunPositionRef, spawnPos
     const rb = rigidBodyRef.current;
     if (!rb) return;
 
+    const position = rb.translation();
+    gameState.playerX = position.x;
+    gameState.playerY = position.y;
+    gameState.playerZ = position.z;
+
     if (deadRef.current) {
       const v = rb.linvel();
       rb.setLinvel({ x: 0, y: Math.min(v.y, 0), z: 0 }, true);

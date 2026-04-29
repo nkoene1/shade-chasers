@@ -1,7 +1,8 @@
 import { useGLTF } from '@react-three/drei';
-import { useThree } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { RigidBody, TrimeshCollider } from '@react-three/rapier';
-import { useMemo } from 'react';
+import { useControls } from 'leva';
+import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
 
 const RUIN_SKYSCRAPER_PATH = '/models/ruin_skyscraper.glb';
@@ -12,6 +13,7 @@ const ANTENNA_PATH = '/models/antenna.glb';
 const DEAD_TREE_PATH = '/models/dead-tree.glb';
 const STONE_SLAB_PATH = '/models/stone-slab.glb';
 const WOOD_PATH = '/models/wood.glb';
+const BROKEN_BUS_PATH = '/models/broken-bus.glb';
 
 const MILITARY_BARREL_GREY_PATH = '/models/military/barrel_grey.glb';
 const MILITARY_BOX_BIG_1_PATH = '/models/military/box_big_1.glb';
@@ -227,6 +229,120 @@ interface ModelObstacleProps {
 	useConcreteWeathering?: boolean;
 }
 
+interface BrokenBusSmokeSettings {
+	enabled: boolean;
+	particleCount: number;
+	size: number;
+	thickness: number;
+	height: number;
+	baseRadius: number;
+	topRadius: number;
+	speed: number;
+	driftX: number;
+	driftZ: number;
+	color: string;
+	sourceOffsetX: number;
+	sourceOffsetY: number;
+	sourceOffsetZ: number;
+}
+
+interface SmokeParticle {
+	angle: number;
+	phase: number;
+	radiusSeed: number;
+	sizeSeed: number;
+	wobble: number;
+}
+
+const smokeObject = new THREE.Object3D();
+const smokeSourceOffset = new THREE.Vector3();
+const smokeEuler = new THREE.Euler();
+const smokeRotation = new THREE.Quaternion();
+
+function BrokenBusSmoke({ placement, settings }: { placement: ObstaclePlacement; settings: BrokenBusSmokeSettings }) {
+	const meshRef = useRef<THREE.InstancedMesh>(null);
+	const count = Math.max(1, Math.round(settings.particleCount));
+	const scale = placement.scale ?? 1;
+	const rotationX = placement.rotationX ?? 0;
+	const rotationY = placement.rotationY ?? 0;
+	const rotationZ = placement.rotationZ ?? 0;
+
+	const sourcePosition = useMemo<[number, number, number]>(() => {
+		smokeSourceOffset.set(settings.sourceOffsetX, settings.sourceOffsetY, settings.sourceOffsetZ);
+		smokeSourceOffset.multiplyScalar(scale);
+		smokeEuler.set(rotationX, rotationY, rotationZ);
+		smokeRotation.setFromEuler(smokeEuler);
+		smokeSourceOffset.applyQuaternion(smokeRotation);
+
+		return [
+			placement.position[0] + smokeSourceOffset.x,
+			placement.position[1] + smokeSourceOffset.y,
+			placement.position[2] + smokeSourceOffset.z,
+		];
+	}, [
+		placement.position,
+		rotationX,
+		rotationY,
+		rotationZ,
+		scale,
+		settings.sourceOffsetX,
+		settings.sourceOffsetY,
+		settings.sourceOffsetZ,
+	]);
+
+	const particles = useMemo<SmokeParticle[]>(() => {
+		const rand = mulberry32(911);
+		return Array.from({ length: count }, () => ({
+			angle: rand() * Math.PI * 2,
+			phase: rand(),
+			radiusSeed: 0.35 + rand() * 0.65,
+			sizeSeed: 0.75 + rand() * 0.6,
+			wobble: 0.7 + rand() * 1.6,
+		}));
+	}, [count]);
+
+	useFrame((state) => {
+		const mesh = meshRef.current;
+		if (!mesh || !settings.enabled) return;
+
+		const time = state.clock.elapsedTime * settings.speed;
+		for (let i = 0; i < particles.length; i++) {
+			const particle = particles[i];
+			const progress = (particle.phase + time) % 1;
+			const rise = progress * settings.height;
+			const radius = THREE.MathUtils.lerp(settings.baseRadius, settings.topRadius, progress) * particle.radiusSeed;
+			const wobble = Math.sin(time * 2.1 + particle.phase * 17) * 0.28 * particle.wobble;
+			const fadeScale = Math.sin(progress * Math.PI);
+			const puffSize = settings.size * particle.sizeSeed * THREE.MathUtils.lerp(0.65, 1.55, progress) * Math.max(0.15, fadeScale);
+			const x = Math.cos(particle.angle + wobble) * radius + settings.driftX * progress;
+			const z = Math.sin(particle.angle + wobble) * radius + settings.driftZ * progress;
+
+			smokeObject.position.set(x, rise, z);
+			smokeObject.scale.setScalar(puffSize);
+			smokeObject.rotation.set(progress * Math.PI, particle.angle, wobble);
+			smokeObject.updateMatrix();
+			mesh.setMatrixAt(i, smokeObject.matrix);
+		}
+		mesh.instanceMatrix.needsUpdate = true;
+	});
+
+	return (
+		<group position={sourcePosition} visible={settings.enabled}>
+			<instancedMesh ref={meshRef} args={[undefined, undefined, count]} frustumCulled={false}>
+				<icosahedronGeometry args={[1, 1]} />
+				<meshStandardMaterial
+					color={settings.color}
+					transparent
+					opacity={settings.thickness}
+					depthWrite={false}
+					roughness={1}
+					metalness={0}
+				/>
+			</instancedMesh>
+		</group>
+	);
+}
+
 function ModelObstacle({ path, placement, useConcreteWeathering = false }: ModelObstacleProps) {
 	const { scene } = useGLTF(path);
 	const { gl } = useThree();
@@ -286,6 +402,15 @@ function RuinObstacle(props: RuinObstacleProps) {
 	return <ModelObstacle {...props} useConcreteWeathering />;
 }
 
+function BrokenBusObstacle({ placement, smokeSettings }: { placement: ObstaclePlacement; smokeSettings: BrokenBusSmokeSettings }) {
+	return (
+		<>
+			<ModelObstacle path={BROKEN_BUS_PATH} placement={placement} />
+			<BrokenBusSmoke placement={placement} settings={smokeSettings} />
+		</>
+	);
+}
+
 // ---------------------------------------------------------------------------
 // Placement data — edit these arrays to add/move/remove instances
 // ---------------------------------------------------------------------------
@@ -323,6 +448,10 @@ const STONE_SLAB: ObstaclePlacement[] = [];
 const WOOD: ObstaclePlacement[] = [
 	{ position: [28, 1, -20], rotationX: 0, rotationY: 0, rotationZ: 0, scale: 0.5 },
 	{ position: [28, 1, -16], rotationX: 0, rotationY: 0, rotationZ: 0, scale: 0.5 },
+];
+
+const BROKEN_BUS: ObstaclePlacement[] = [
+	{ position: [-5, 1.5, 40], rotationX: 0, rotationY: -1, rotationZ: 0.2, scale: 0.5 },
 ];
 
 const MILITARY_BARREL_GREY: ObstaclePlacement[] = [
@@ -403,6 +532,27 @@ const MILITARY_OBSTACLES: ObstacleType[] = [
 ];
 
 export function Obstacles() {
+	const smokeSettings = useControls(
+		'Broken Bus Smoke',
+		{
+			enabled: true,
+			particleCount: { value: 34, min: 4, max: 100, step: 1, label: 'Puff Count' },
+			size: { value: 0.55, min: 0.05, max: 2.5, step: 0.05 },
+			thickness: { value: 0.42, min: 0.02, max: 1, step: 0.01 },
+			height: { value: 6, min: 0.5, max: 18, step: 0.25 },
+			baseRadius: { value: 0.25, min: 0, max: 4, step: 0.05, label: 'Base Radius' },
+			topRadius: { value: 1.65, min: 0, max: 8, step: 0.05, label: 'Top Radius' },
+			speed: { value: 0.22, min: 0.02, max: 1.5, step: 0.01 },
+			driftX: { value: -0.55, min: -5, max: 5, step: 0.05, label: 'Drift X' },
+			driftZ: { value: 0.2, min: -5, max: 5, step: 0.05, label: 'Drift Z' },
+			color: '#242129',
+			sourceOffsetX: { value: 0, min: -8, max: 8, step: 0.1, label: 'Source X' },
+			sourceOffsetY: { value: 3.5, min: -2, max: 10, step: 0.1, label: 'Source Y' },
+			sourceOffsetZ: { value: 2, min: -8, max: 8, step: 0.1, label: 'Source Z' },
+		},
+		{ collapsed: true },
+	);
+
 	return (
 		<>
 			{RUIN_SKYSCRAPER.map((placement, i) => (
@@ -417,6 +567,9 @@ export function Obstacles() {
 			{MODEL_OBSTACLES.map(({ key, path, placements }) =>
 				placements.map((placement, i) => <ModelObstacle key={`${key}-${i}`} path={path} placement={placement} />)
 			)}
+			{BROKEN_BUS.map((placement, i) => (
+				<BrokenBusObstacle key={`broken-bus-${i}`} placement={placement} smokeSettings={smokeSettings} />
+			))}
 			{MILITARY_OBSTACLES.map(({ key, path, placements }) =>
 				placements.map((placement, i) => <ModelObstacle key={`${key}-${i}`} path={path} placement={placement} />)
 			)}
@@ -431,6 +584,7 @@ useGLTF.preload(ANTENNA_PATH);
 useGLTF.preload(DEAD_TREE_PATH);
 useGLTF.preload(STONE_SLAB_PATH);
 useGLTF.preload(WOOD_PATH);
+useGLTF.preload(BROKEN_BUS_PATH);
 useGLTF.preload(MILITARY_BARREL_GREY_PATH);
 useGLTF.preload(MILITARY_BOX_BIG_1_PATH);
 useGLTF.preload(MILITARY_BOX_BIG_2_PATH);

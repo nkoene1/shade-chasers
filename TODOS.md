@@ -3,7 +3,7 @@
 - [ ] Add obstacles
 - [ ] Post processing effect while taking damage (maybe red vignette?)
 - [x] Start screen background video
-- [ ] Controls/key bindings legend
+- [x] Controls/key bindings legend
 - [x] Sound effects & music
 - [ ] Tolerance stat + items to collect
 - [ ] Let round end after high noon is reached (?)

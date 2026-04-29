@@ -4,9 +4,10 @@ import { useRef } from 'react';
 import { gameState } from './gameState';
 
 export function useHealth(inShadowRef: React.RefObject<boolean>) {
-	const { drainRate, regenRate } = useControls(
+	const { sunDamageEnabled, drainRate, regenRate } = useControls(
 		'Health',
 		{
+			sunDamageEnabled: { value: true, label: 'Sun Damage' },
 			drainRate: { value: 16, min: 1, max: 40, step: 1, label: 'Drain / sec' },
 			regenRate: { value: 6, min: 0.5, max: 20, step: 0.5, label: 'Regen / sec' },
 		},
@@ -33,7 +34,7 @@ export function useHealth(inShadowRef: React.RefObject<boolean>) {
 		const inShadow = inShadowRef.current;
 		gameState.inShadow = inShadow;
 
-		if (!inShadow && gameState.health > 0) {
+		if (sunDamageEnabled && !inShadow && gameState.health > 0) {
 			gameState.health = Math.max(0, gameState.health - drainRate * delta);
 			gameState.isDraining = true;
 		} else if (inShadow && gameState.health < gameState.maxHealth) {

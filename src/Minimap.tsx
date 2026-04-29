@@ -2,14 +2,20 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { useControls } from 'leva';
 import { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
+import { gameState } from './gameState';
 import { TERRAIN_SIZE } from './useHeightMap';
+
+function hudEdgeInsetCssPixels(): number {
+	const raw = getComputedStyle(document.documentElement).getPropertyValue('--hud-edge-inset').trim();
+	const n = parseFloat(raw);
+	return Number.isFinite(n) ? n : 24;
+}
 
 export function Minimap() {
 	const { gl, scene } = useThree();
 
-	const { size, margin, cameraHeight, opacity } = useControls('Minimap', {
+	const { size, cameraHeight, opacity } = useControls('Minimap', {
 		size: { value: 240, min: 80, max: 400, step: 10, label: 'Size (px)' },
-		margin: { value: 16, min: 0, max: 60, step: 2, label: 'Distance (px)' },
 		cameraHeight: { value: 200, min: 50, max: 500, step: 10, label: 'Camera Height' },
 		opacity: { value: 1, min: 0.2, max: 1, step: 0.05 },
 	}, { collapsed: true });
@@ -17,9 +23,8 @@ export function Minimap() {
 	useEffect(() => {
 		const root = document.documentElement;
 		root.style.setProperty('--minimap-size', `${size}px`);
-		root.style.setProperty('--minimap-margin', `${margin}px`);
 		root.style.setProperty('--minimap-opacity', `${opacity}`);
-	}, [size, margin, opacity]);
+	}, [size, opacity]);
 
 	const camera = useMemo(() => {
 		const half = TERRAIN_SIZE / 2;
@@ -30,6 +35,10 @@ export function Minimap() {
 	}, [cameraHeight]);
 
 	const clearColor = useMemo(() => new THREE.Color('#1a1a2e'), []);
+	const finishPosition = useMemo(() => new THREE.Vector3(), []);
+	const finishProjected = useMemo(() => new THREE.Vector3(), []);
+	const playerPosition = useMemo(() => new THREE.Vector3(), []);
+	const playerProjected = useMemo(() => new THREE.Vector3(), []);
 	const _scissor = useMemo(() => new THREE.Vector4(), []);
 	const _viewport = useMemo(() => new THREE.Vector4(), []);
 	const _clearColor = useMemo(() => new THREE.Color(), []);
@@ -38,10 +47,22 @@ export function Minimap() {
 		const dpr = gl.getPixelRatio();
 		const cw = gl.domElement.width;
 		const mapSize = Math.round(size * dpr);
-		const mapMargin = Math.round(margin * dpr);
+		const edgeInsetPx = hudEdgeInsetCssPixels();
+		const mapMargin = Math.round(edgeInsetPx * dpr);
 
 		const x = cw - mapSize - mapMargin;
 		const y = mapMargin;
+
+		camera.updateMatrixWorld();
+		finishPosition.set(gameState.finishX, gameState.finishY, gameState.finishZ);
+		finishProjected.copy(finishPosition).project(camera);
+		gameState.finishMinimapScreenX = x / dpr + (finishProjected.x * 0.5 + 0.5) * size;
+		gameState.finishMinimapScreenY = gl.domElement.clientHeight - edgeInsetPx - size + (-finishProjected.y * 0.5 + 0.5) * size;
+
+		playerPosition.set(gameState.playerX, gameState.playerY, gameState.playerZ);
+		playerProjected.copy(playerPosition).project(camera);
+		gameState.playerMinimapScreenX = x / dpr + (playerProjected.x * 0.5 + 0.5) * size;
+		gameState.playerMinimapScreenY = gl.domElement.clientHeight - edgeInsetPx - size + (-playerProjected.y * 0.5 + 0.5) * size;
 
 		const prevScissorTest = gl.getScissorTest();
 		gl.getScissor(_scissor);

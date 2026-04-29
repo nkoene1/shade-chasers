@@ -2,10 +2,17 @@ import { useEffect, useRef } from 'react';
 import { gameState } from './gameState';
 import { formatRaceTime } from './formatRaceTime';
 import { fetchTopScores, isScoreboardConfigured } from './scoreboardApi';
+import { ShelterIcon } from './ShelterIcon';
 import './Hud.css';
 
 const FLAME_COUNT = 10;
 const SCOREBOARD_RANK_LIMIT = 10;
+const PLAYER_CONTROLS = [
+	{ keys: 'WASD', action: 'Run' },
+	{ keys: 'Mouse', action: 'Look' },
+	{ keys: 'Space', action: 'Jump' },
+	{ keys: 'Shift', action: 'Roll' },
+];
 
 function hypotheticalRank(elapsedMs: number, scoreTimes: number[]): number | 'too slow' {
 	for (let i = 0; i < scoreTimes.length; i++) {
@@ -43,6 +50,10 @@ export function Hud() {
 	const positionLabelRef = useRef<HTMLSpanElement>(null);
 	const progressValueRef = useRef<HTMLSpanElement>(null);
 	const progressFillRef = useRef<HTMLDivElement>(null);
+	const finishWaypointRef = useRef<HTMLDivElement>(null);
+	const finishDistanceRef = useRef<HTMLSpanElement>(null);
+	const minimapFinishRef = useRef<HTMLDivElement>(null);
+	const minimapPlayerRef = useRef<HTMLDivElement>(null);
 	const hudRef = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
@@ -88,7 +99,14 @@ export function Hud() {
 			const positionLabel = positionLabelRef.current;
 			const progressValue = progressValueRef.current;
 			const progressFill = progressFillRef.current;
+			const finishWaypoint = finishWaypointRef.current;
+			const finishDistance = finishDistanceRef.current;
+			const minimapFinish = minimapFinishRef.current;
+			const minimapPlayer = minimapPlayerRef.current;
+			const hud = hudRef.current;
 			const phase = gameState.phase;
+
+			hud?.classList.toggle('hud--show-controls', phase === 'countdown' || phase === 'running');
 
 			if (phase === 'pre-round' && prevPhase !== 'pre-round') {
 				void loadScoreTimes();
@@ -139,6 +157,24 @@ export function Hud() {
 				}
 			}
 
+			if (finishWaypoint) {
+				finishWaypoint.style.transform = `translate3d(${gameState.finishWaypointScreenX}px, ${gameState.finishWaypointScreenY}px, 0) translate(-50%, calc(-100% - 14px))`;
+				finishWaypoint.style.opacity = gameState.finishWaypointFocused ? '1' : '0.4';
+				finishWaypoint.classList.toggle('finish-waypoint--focused', gameState.finishWaypointFocused);
+			}
+
+			if (finishDistance) {
+				finishDistance.textContent = `${Math.ceil(gameState.finishDistanceMeters)}m`;
+			}
+
+			if (minimapFinish) {
+				minimapFinish.style.transform = `translate3d(${gameState.finishMinimapScreenX}px, ${gameState.finishMinimapScreenY}px, 0) translate(-50%, -50%)`;
+			}
+
+			if (minimapPlayer) {
+				minimapPlayer.style.transform = `translate3d(${gameState.playerMinimapScreenX}px, ${gameState.playerMinimapScreenY}px, 0) translate(-50%, -50%)`;
+			}
+
 			rafId = requestAnimationFrame(update);
 		};
 
@@ -174,24 +210,48 @@ export function Hud() {
 				</div>
 			</div>
 
-			{/* Bottom-left: Health bar */}
-			<div className="hud-panel hud-health">
-				<div className="hud-health-header">
-					<span className="hud-health-label">HEALTH</span>
-					<span className="hud-health-value" ref={healthTextRef}>100</span>
-				</div>
-				<div className="hud-health-track">
-					<div className="hud-health-fill" ref={healthFillRef}>
-						<div className="hud-health-fill-sheen" />
-					</div>
-					<div className="hud-health-glow" ref={healthGlowRef} />
-					<div className="hud-health-flames" ref={flameContainerRef}>
-						{Array.from({ length: FLAME_COUNT }, (_, i) => (
-							<div key={i} className={`flame flame-${i}`} />
+			<div className="hud-bottom-left">
+				<aside className="hud-controls" aria-label="Player controls">
+					<div className="hud-controls-list">
+						{PLAYER_CONTROLS.map(({ keys, action }) => (
+							<div key={action} className="hud-controls-item">
+								<kbd className="hud-controls-key">{keys}</kbd>
+								<span className="hud-controls-action">{action}</span>
+							</div>
 						))}
+					</div>
+				</aside>
+
+				{/* Bottom-left: Health bar */}
+				<div className="hud-panel hud-health">
+					<div className="hud-health-header">
+						<span className="hud-health-label">HEALTH</span>
+						<span className="hud-health-value" ref={healthTextRef}>100</span>
+					</div>
+					<div className="hud-health-track">
+						<div className="hud-health-fill" ref={healthFillRef}>
+							<div className="hud-health-fill-sheen" />
+						</div>
+						<div className="hud-health-glow" ref={healthGlowRef} />
+						<div className="hud-health-flames" ref={flameContainerRef}>
+							{Array.from({ length: FLAME_COUNT }, (_, i) => (
+								<div key={i} className={`flame flame-${i}`} />
+							))}
+						</div>
 					</div>
 				</div>
 			</div>
+
+			<div className="finish-waypoint" ref={finishWaypointRef} aria-label="Shelter waypoint">
+				<ShelterIcon className="finish-waypoint-icon" />
+				<span className="finish-waypoint-distance" ref={finishDistanceRef}>0m</span>
+			</div>
+
+			<div className="minimap-finish-marker" ref={minimapFinishRef} aria-label="Shelter on map">
+				<ShelterIcon className="minimap-finish-icon" />
+			</div>
+
+			<div className="minimap-player-marker" ref={minimapPlayerRef} aria-label="Player on map" />
 		</div>
 	);
 }

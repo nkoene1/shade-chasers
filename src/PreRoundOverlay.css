@@ -318,6 +318,63 @@
 	font-weight: 600;
 }
 
+.preround-action-legend {
+	position: absolute;
+	bottom: 16px;
+	left: 16px;
+	z-index: 2;
+	width: min(280px, calc(100vw - 32px));
+	padding: 0;
+	opacity: 1;
+	text-shadow: 0 1px 6px rgba(0, 0, 0, 0.55);
+}
+
+.preround-action-legend-title {
+	margin-bottom: 8px;
+	font-size: 11px;
+	font-weight: 500;
+	letter-spacing: 2px;
+	text-transform: uppercase;
+	color: #8a7a60;
+}
+
+.preround-action-legend-list {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.preround-action-legend-item {
+	display: grid;
+	grid-template-columns: 72px 1fr;
+	align-items: center;
+	gap: 10px;
+	font-size: 15px;
+	color: #ede4d0;
+}
+
+.preround-action-legend-key {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 24px;
+	padding: 3px 8px;
+	font-family: inherit;
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: 1px;
+	color: #f0d8a0;
+	background: rgba(0, 0, 0, 0.45);
+	border: 1px solid rgba(255, 200, 120, 0.28);
+	border-radius: 4px;
+}
+
+.preround-action-legend-action {
+	font-weight: 500;
+	letter-spacing: 1px;
+	color: rgba(237, 228, 208, 0.72);
+}
+
 /* ── Exit ────────────────────────────────── */
 
 .preround--leaving .preround-backdrop {

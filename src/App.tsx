@@ -10,6 +10,7 @@ import { Countdown } from './Countdown';
 import { DesertVegetation } from './DesertVegetation';
 import { FinishArea } from './FinishArea';
 import { FinishResultOverlay } from './FinishResultOverlay';
+import { FinishWaypointTracker } from './FinishWaypointTracker';
 import { gameState, resetGameStateForPreRound, type RoundPhase } from './gameState';
 import { Ground } from './Ground';
 import { Hud } from './Hud';
@@ -101,7 +102,7 @@ const Scene = memo(
 	// frame would snap the sun down to the starting angle, forcing a shadow-map
 	// recompute and shader-variant compile for all casters newly inside the
 	// lowered frustum — a ~tens-of-ms hitch at round start.
-	const DEFAULT_SUN_ANGLE = -3;
+	const DEFAULT_SUN_ANGLE = 0;
 
 	const [{
 		background,
@@ -122,7 +123,7 @@ const Scene = memo(
 			hemisphereIntensity: { value: 0.25, min: 0, max: 2, step: 0.05, label: 'Hemisphere Fill' },
 			hemisphereSkyColor: { value: '#f1dfb2', label: 'Hemisphere Sky' },
 			hemisphereGroundColor: { value: '#4a3a2a', label: 'Hemisphere Ground' },
-			sunAngle: { value: DEFAULT_SUN_ANGLE, min: DEFAULT_SUN_ANGLE, max: 90, step: 1, label: 'Sun Angle (-3%–90%)' },
+			sunAngle: { value: DEFAULT_SUN_ANGLE, min: DEFAULT_SUN_ANGLE, max: 90, step: 1, label: 'Sun Angle (0%–90%)' },
 			sunDirection: { value: 270, min: 0, max: 360, step: 1, label: 'Sun Direction (°)' },
 			sunDistance: { value: 80, min: 80, max: 200, step: 5 },
 			sunSize: { value: 5, min: 1, max: 10, step: 0.5 },
@@ -139,11 +140,13 @@ const Scene = memo(
 	const startTimeRef = useRef(0);
 	const stopRequestedRef = useRef(false);
 
-	const stopTimer = useCallback(() => {
+	const stopTimer = useCallback((resetSunAngle = true) => {
 		timerRunningRef.current = false;
 		stopRequestedRef.current = false;
 		setTimerRunning(false);
-		setLighting({ sunAngle: DEFAULT_SUN_ANGLE });
+		if (resetSunAngle) {
+			setLighting({ sunAngle: DEFAULT_SUN_ANGLE });
+		}
 	}, [setLighting]);
 
 	const startTimer = useCallback(() => {
@@ -227,7 +230,8 @@ const Scene = memo(
 
 			if (progress >= 1 && !stopRequestedRef.current) {
 				stopRequestedRef.current = true;
-				stopTimer();
+				setLighting({ sunAngle: angle });
+				stopTimer(false);
 			}
 		}
 
@@ -297,6 +301,7 @@ const Scene = memo(
 				/>
 				<SandstormBarrier />
 				<FinishArea heightMap={heightMap} heightScale={heightScale} />
+				<FinishWaypointTracker />
 				<Obstacles />
 				{groundReady && spawnPosition && (
 					<Player
@@ -499,7 +504,6 @@ export default function App() {
 			</Canvas>
 			<Hud />
 			<div className="minimap-frame" />
-			<div className="minimap-label">MAP</div>
 			{phase === 'pre-round' && (
 				<PreRoundOverlay
 					onStart={(user) => {

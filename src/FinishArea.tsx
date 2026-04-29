@@ -279,9 +279,12 @@ export function FinishArea({ heightMap, heightScale }: FinishAreaProps) {
   // distance-to-edge without reaching into Leva.
   useEffect(() => {
     gameState.finishX = positionX;
+    gameState.finishY = heightMap
+      ? getTerrainY(heightMap, heightScale, positionX, positionZ) + Math.min(wallHeight * 0.5, 1.4)
+      : 0;
     gameState.finishZ = positionZ;
     gameState.finishRadius = radius;
-  }, [positionX, positionZ, radius]);
+  }, [heightMap, heightScale, positionX, positionZ, radius, wallHeight]);
 
   if (!groundGeo || !wallGeo) return null;
 
