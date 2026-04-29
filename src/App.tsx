@@ -163,8 +163,8 @@ const Scene = memo(
 
 	const { timerDuration } = useControls('Sun Timer', {
 		timerDuration: { value: 90, min: 10, max: 300, step: 5, label: 'Duration (s)' },
-		'Start': button(startTimer, { disabled: timerRunning }),
-		'Stop': button(stopTimer, { disabled: !timerRunning }),
+		'Start': button(() => startTimer(), { disabled: timerRunning }),
+		'Stop': button(() => stopTimer(), { disabled: !timerRunning }),
 	}, { collapsed: true }, [startTimer, stopTimer, timerRunning]);
 
 	const timerDurationRef = useRef(timerDuration);
